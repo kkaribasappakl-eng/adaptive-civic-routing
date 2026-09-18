@@ -171,11 +171,31 @@ const routeComplaint = async (complaintIdOrCode) => {
     ]);
     savedDecision = dRes.rows[0];
 
-    // 7. Update complaint status
-    const newComplaintStatus = routingStatus === 'ROUTED' ? 'ROUTED' : 'TRIAGED';
+    // 7. Update complaint status and append to status history
+    const previousStatus = complaint.status;
+    const newComplaintStatus = routingStatus === 'ROUTED' ? 'ROUTED' : 'HUMAN_REVIEW';
     await client.query(
       'UPDATE complaints SET status = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2;',
       [newComplaintStatus, complaint.id]
+    );
+
+    await client.query(
+      `INSERT INTO complaint_status_history (
+        complaint_id,
+        previous_status,
+        new_status,
+        changed_by,
+        reason,
+        metadata
+      ) VALUES ($1, $2, $3, $4, $5, $6);`,
+      [
+        complaint.id,
+        previousStatus,
+        newComplaintStatus,
+        'routing_engine',
+        reason,
+        JSON.stringify({ activeVersionAtRouting: activeVersion.version_code, authority: matchedData?.authority_name || null })
+      ]
     );
 
     await client.query('COMMIT');
@@ -189,7 +209,7 @@ const routeComplaint = async (complaintIdOrCode) => {
   // Fetch full decision record for response
   const fullDecision = await getRoutingDecisionByComplaint(complaint.id);
 
-  // 8. Emit Socket.IO event with safe metadata
+  // 8. Emit Socket.IO events with safe metadata
   try {
     const io = getIO();
     const eventName = routingStatus === 'ROUTED' ? 'routing:completed' : 'routing:review_required';
@@ -206,6 +226,18 @@ const routeComplaint = async (complaintIdOrCode) => {
       jurisdictionVersion: activeVersion.version_code,
       reason,
       timestamp: new Date().toISOString()
+    });
+
+    // Also emit complaint:status_changed for Stage 6 lifecycle tracking
+    const newComplaintStatus = routingStatus === 'ROUTED' ? 'ROUTED' : 'HUMAN_REVIEW';
+    io.emit('complaint:status_changed', {
+      complaintId: complaint.id,
+      complaintCode: complaint.complaint_code,
+      previousStatus: complaint.status,
+      newStatus: newComplaintStatus,
+      reason,
+      changedBy: 'routing_engine',
+      changedAt: new Date().toISOString()
     });
   } catch (socketErr) {
     console.warn('[Socket.IO] Routing broadcast warning:', socketErr.message);

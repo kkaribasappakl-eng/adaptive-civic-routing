@@ -358,4 +358,67 @@ export const getRoutingDecisions = async (limit = 20, offset = 0) => {
   }
 };
 
+/**
+ * Stage 6: Update complaint status with state machine transition validation
+ * PATCH /api/complaints/:complaintId/status
+ */
+export const updateComplaintStatus = async (complaintId, status, reason = null, changedBy = null) => {
+  try {
+    const response = await api.patch(`/complaints/${complaintId}/status`, {
+      status,
+      reason,
+      changedBy
+    });
+    return {
+      success: true,
+      data: response.data.data,
+      message: response.data.message
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: error.response?.data?.error || error.message
+    };
+  }
+};
+
+/**
+ * Stage 6: Fetch chronological status history for a complaint
+ * GET /api/complaints/:complaintId/status-history
+ */
+export const getComplaintStatusHistory = async (complaintId) => {
+  try {
+    const response = await api.get(`/complaints/${complaintId}/status-history`);
+    return {
+      success: true,
+      data: response.data.data
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: error.response?.data?.error || error.message
+    };
+  }
+};
+
+/**
+ * Stage 6: Fetch full complaint lifecycle (details, routing, status history)
+ * GET /api/complaints/:complaintId
+ */
+export const getComplaintLifecycle = async (complaintId) => {
+  try {
+    const response = await api.get(`/complaints/${complaintId}`);
+    return {
+      success: true,
+      data: response.data.data
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: error.response?.data?.error || error.message
+    };
+  }
+};
+
 export default api;
+

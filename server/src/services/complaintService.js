@@ -211,6 +211,30 @@ const createComplaint = async (inputData, photoRelativeUrl = null) => {
 
   const savedComplaint = result.rows[0];
 
+  // Record initial SUBMITTED status history
+  try {
+    await pool.query(
+      `INSERT INTO complaint_status_history (
+        complaint_id,
+        previous_status,
+        new_status,
+        changed_by,
+        reason,
+        metadata
+      ) VALUES ($1, $2, $3, $4, $5, $6);`,
+      [
+        savedComplaint.id,
+        null,
+        savedComplaint.status || 'SUBMITTED',
+        'citizen_portal',
+        'Initial citizen complaint submitted',
+        JSON.stringify({ duplicateWarningIssued: duplicateInfo.possibleDuplicate })
+      ]
+    );
+  } catch (histErr) {
+    console.warn('[Status History] Initial history log error:', histErr.message);
+  }
+
   // Broadcast real-time Socket.IO event with safe metadata
   try {
     const io = getIO();

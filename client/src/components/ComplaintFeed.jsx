@@ -18,6 +18,7 @@ import {
 import { fetchRecentComplaints, routeComplaint, getComplaintRouting } from '../services/api';
 import socket from '../services/socket';
 import RoutingDecisionModal from './RoutingDecisionModal';
+import CaseTrackerModal from './CaseTrackerModal';
 
 export default function ComplaintFeed({ newComplaint }) {
   const [complaints, setComplaints] = useState([]);
@@ -28,6 +29,7 @@ export default function ComplaintFeed({ newComplaint }) {
   const [selectedDecision, setSelectedDecision] = useState(null);
   const [selectedComplaint, setSelectedComplaint] = useState(null);
   const [loadingDecision, setLoadingDecision] = useState(false);
+  const [trackingComplaintId, setTrackingComplaintId] = useState(null);
 
   const loadComplaints = async () => {
     setLoading(true);
@@ -97,14 +99,26 @@ export default function ComplaintFeed({ newComplaint }) {
       );
     };
 
+    const handleStatusChanged = (data) => {
+      setComplaints((prev) =>
+        prev.map((c) =>
+          c.id === data.complaintId || c.complaint_code === data.complaintCode
+            ? { ...c, status: data.newStatus }
+            : c
+        )
+      );
+    };
+
     socket.on('complaint:created', handleComplaintCreated);
     socket.on('routing:completed', handleRoutingCompleted);
     socket.on('routing:review_required', handleRoutingReview);
+    socket.on('complaint:status_changed', handleStatusChanged);
 
     return () => {
       socket.off('complaint:created', handleComplaintCreated);
       socket.off('routing:completed', handleRoutingCompleted);
       socket.off('routing:review_required', handleRoutingReview);
+      socket.off('complaint:status_changed', handleStatusChanged);
     };
   }, []);
 
@@ -232,25 +246,37 @@ export default function ComplaintFeed({ newComplaint }) {
                     )}
                   </div>
 
-                  {isReceived ? (
+                  <div className="flex items-center gap-1.5">
+                    {isReceived ? (
+                      <button
+                        onClick={() => handleRouteClick(item)}
+                        disabled={isBusy}
+                        className="px-2.5 py-1 bg-civic-600 hover:bg-civic-500 disabled:opacity-50 text-white rounded text-[10px] font-semibold flex items-center gap-1 transition shadow-sm"
+                      >
+                        <Zap className={`w-3 h-3 ${isBusy ? 'animate-spin' : 'text-amber-300'}`} />
+                        {isBusy ? 'Routing...' : 'Route Complaint'}
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => handleViewDecision(item)}
+                        disabled={loadingDecision}
+                        className="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded text-[10px] font-mono flex items-center gap-1 transition border border-slate-700"
+                      >
+                        <Info className="w-3 h-3 text-civic-400" />
+                        View Decision
+                      </button>
+                    )}
+
+                    {/* Stage 6: Case Tracker */}
                     <button
-                      onClick={() => handleRouteClick(item)}
-                      disabled={isBusy}
-                      className="px-2.5 py-1 bg-civic-600 hover:bg-civic-500 disabled:opacity-50 text-white rounded text-[10px] font-semibold flex items-center gap-1 transition shadow-sm"
+                      onClick={() => setTrackingComplaintId(item.id)}
+                      className="px-2 py-1 bg-emerald-950/70 hover:bg-emerald-900/80 text-emerald-300 rounded text-[10px] font-semibold flex items-center gap-1 transition border border-emerald-500/40 shadow-sm"
+                      title="Track Complaint Lifecycle & Actions"
                     >
-                      <Zap className={`w-3 h-3 ${isBusy ? 'animate-spin' : 'text-amber-300'}`} />
-                      {isBusy ? 'Routing...' : 'Route Complaint'}
+                      <Clock className="w-3 h-3 text-emerald-400" />
+                      Track Case
                     </button>
-                  ) : (
-                    <button
-                      onClick={() => handleViewDecision(item)}
-                      disabled={loadingDecision}
-                      className="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded text-[10px] font-mono flex items-center gap-1 transition border border-slate-700"
-                    >
-                      <Info className="w-3 h-3 text-civic-400" />
-                      View Decision
-                    </button>
-                  )}
+                  </div>
                 </div>
 
                 <div className="flex flex-wrap items-center justify-between text-[10px] text-slate-400 font-mono pt-1.5 border-t border-slate-800/60 gap-1">
@@ -286,6 +312,14 @@ export default function ComplaintFeed({ newComplaint }) {
             setSelectedDecision(null);
             setSelectedComplaint(null);
           }}
+        />
+      )}
+
+      {/* Stage 6 Case Tracker Modal */}
+      {trackingComplaintId && (
+        <CaseTrackerModal
+          complaintId={trackingComplaintId}
+          onClose={() => setTrackingComplaintId(null)}
         />
       )}
     </div>

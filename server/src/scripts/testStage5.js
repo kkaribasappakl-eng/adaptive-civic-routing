@@ -123,7 +123,7 @@ async function runStage5Tests() {
 
     // 1. Database migration check
     const health = await sendRequest('/api/health');
-    assert(health.status === 200 && health.body.stage === 5, '1. Database Migration: Backend running Stage 5', `Stage: ${health.body.stage}`);
+    assert(health.status === 200 && health.body.stage >= 5, '1. Database Migration: Backend running Stage 5+', `Stage: ${health.body.stage}`);
 
     // 2. Routing decisions table check
     const rdTableCheck = await pool.query(`
