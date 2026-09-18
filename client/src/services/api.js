@@ -420,5 +420,83 @@ export const getComplaintLifecycle = async (complaintId) => {
   }
 };
 
+/**
+ * Stage 7: Fetch complete complaint SLA details, benchmark policy, and chronological events
+ * GET /api/complaints/:complaintId/sla
+ */
+export const getComplaintSla = async (complaintId) => {
+  try {
+    const response = await api.get(`/complaints/${complaintId}/sla`);
+    return {
+      success: true,
+      data: response.data.data
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: error.response?.data?.error || error.message
+    };
+  }
+};
+
+/**
+ * Stage 7: Evaluate complaint SLA against real PostgreSQL timestamps
+ * POST /api/complaints/:complaintId/sla/evaluate
+ */
+export const evaluateComplaintSla = async (complaintId, referenceTime = null) => {
+  try {
+    const payload = referenceTime ? { referenceTime } : {};
+    const response = await api.post(`/complaints/${complaintId}/sla/evaluate`, payload);
+    return {
+      success: true,
+      data: response.data.data
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: error.response?.data?.error || error.message
+    };
+  }
+};
+
+/**
+ * Stage 7: Fetch all configured SLA benchmark rules
+ * GET /api/sla/rules
+ */
+export const getSlaRules = async () => {
+  try {
+    const response = await api.get('/sla/rules');
+    return {
+      success: true,
+      data: response.data.data,
+      total: response.data.total
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: error.response?.data?.error || error.message
+    };
+  }
+};
+
+/**
+ * Stage 7: Fetch aggregate municipal SLA overview statistics
+ * GET /api/sla/overview
+ */
+export const getSlaOverview = async () => {
+  try {
+    const response = await api.get('/sla/overview');
+    return {
+      success: true,
+      data: response.data.data
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: error.response?.data?.error || error.message
+    };
+  }
+};
+
 export default api;
 

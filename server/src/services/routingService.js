@@ -1,5 +1,6 @@
 const { pool } = require('../config/db');
 const { getIO } = require('./socketService');
+const { initializeComplaintSla } = require('./slaService');
 
 /**
  * Core Deterministic Civic Routing Engine
@@ -171,11 +172,11 @@ const routeComplaint = async (complaintIdOrCode) => {
     ]);
     savedDecision = dRes.rows[0];
 
-    // 7. Update complaint status and append to status history
+    // 7. Update complaint status, persist real PostgreSQL routed_at timestamp, and append to status history
     const previousStatus = complaint.status;
     const newComplaintStatus = routingStatus === 'ROUTED' ? 'ROUTED' : 'HUMAN_REVIEW';
     await client.query(
-      'UPDATE complaints SET status = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2;',
+      'UPDATE complaints SET status = $1, routed_at = COALESCE(routed_at, CURRENT_TIMESTAMP), updated_at = CURRENT_TIMESTAMP WHERE id = $2;',
       [newComplaintStatus, complaint.id]
     );
 
@@ -197,6 +198,9 @@ const routeComplaint = async (complaintIdOrCode) => {
         JSON.stringify({ activeVersionAtRouting: activeVersion.version_code, authority: matchedData?.authority_name || null })
       ]
     );
+
+    // 8. Initialize Stage 7 SLA tracking in PostgreSQL
+    await initializeComplaintSla(complaint.id, client);
 
     await client.query('COMMIT');
   } catch (err) {

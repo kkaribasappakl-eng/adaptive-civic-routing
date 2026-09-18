@@ -14,11 +14,11 @@ export default function Header({ socketConnected, apiHealthy, activeTab = 'compl
             <h1 className="text-xl font-bold tracking-tight text-white flex items-center gap-2">
               Adaptive Civic Routing Intelligence System
               <span className="text-xs uppercase font-mono px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                Stage 6
+                Stage 7
               </span>
             </h1>
             <p className="text-xs text-slate-400 font-medium">
-              HackMysuru • Case Status & Citizen Follow-Through
+              HackMysuru • SLA Tracking & Escalation
             </p>
           </div>
         </div>

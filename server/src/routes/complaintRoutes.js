@@ -11,6 +11,10 @@ const {
   getStatusHistoryHandler,
   getComplaintLifecycleHandler
 } = require('../controllers/caseStatusController');
+const {
+  getComplaintSlaHandler,
+  evaluateComplaintSlaHandler
+} = require('../controllers/slaController');
 const { handlePhotoUpload } = require('../middleware/uploadMiddleware');
 
 // AI Issue Classification route (accepts description + optional photo)
@@ -39,6 +43,12 @@ router.patch('/:complaintId/status', updateStatusHandler);
 
 // Stage 6: Get complaint status history
 router.get('/:complaintId/status-history', getStatusHistoryHandler);
+
+// Stage 7: Get complaint SLA details & event history
+router.get('/:complaintId/sla', getComplaintSlaHandler);
+
+// Stage 7: Evaluate complaint SLA
+router.post('/:complaintId/sla/evaluate', evaluateComplaintSlaHandler);
 
 module.exports = router;
 

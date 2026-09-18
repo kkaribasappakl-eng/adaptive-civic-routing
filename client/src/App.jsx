@@ -170,7 +170,7 @@ export default function App() {
 
       {/* Civic Footer */}
       <footer className="border-t border-slate-900 bg-slate-950/80 px-6 py-4 text-center text-xs text-slate-500">
-        Adaptive Civic Routing Intelligence System • HackMysuru Sub-Problem: Routing • Stage 6: Case Status & Citizen Follow-Through
+        Adaptive Civic Routing Intelligence System • HackMysuru Sub-Problem: Routing • Stage 7: SLA Tracking & Escalation
       </footer>
     </div>
   );

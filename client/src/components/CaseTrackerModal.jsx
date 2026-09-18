@@ -21,6 +21,7 @@ import {
   Zap
 } from 'lucide-react';
 import StatusTimeline from './StatusTimeline';
+import SlaStatusCard from './SlaStatusCard';
 import { getComplaintLifecycle, updateComplaintStatus } from '../services/api';
 import socket from '../services/socket';
 
@@ -79,9 +80,27 @@ export default function CaseTrackerModal({ complaintId, onClose }) {
       }
     };
 
+    const handleSlaWarning = (payload) => {
+      if (payload.complaintId === complaintId) {
+        setSuccessMessage(`⚠️ SLA Warning: Case resolution is AT RISK (${payload.category})`);
+        setTimeout(() => setSuccessMessage(''), 5000);
+      }
+    };
+
+    const handleSlaBreached = (payload) => {
+      if (payload.complaintId === complaintId) {
+        setErrorMessage(`🚨 SLA BREACHED: Case resolution deadline has passed (${payload.category})`);
+        setTimeout(() => setErrorMessage(''), 6000);
+      }
+    };
+
     socket.on('complaint:status_changed', handleStatusChanged);
+    socket.on('sla:warning', handleSlaWarning);
+    socket.on('sla:breached', handleSlaBreached);
     return () => {
       socket.off('complaint:status_changed', handleStatusChanged);
+      socket.off('sla:warning', handleSlaWarning);
+      socket.off('sla:breached', handleSlaBreached);
     };
   }, [complaintId]);
 
@@ -248,6 +267,19 @@ export default function CaseTrackerModal({ complaintId, onClose }) {
                   </div>
                 )}
               </div>
+
+              {/* Stage 7: SLA Tracking & Escalation Card */}
+              {routing && (
+                <SlaStatusCard
+                  complaintId={complaintId}
+                  complaintStatus={status}
+                  onSlaUpdated={(evalResult) => {
+                    if (evalResult && evalResult.slaStatus) {
+                      setData((prev) => prev ? { ...prev, sla_status: evalResult.slaStatus } : prev);
+                    }
+                  }}
+                />
+              )}
 
               {/* Status Actions Bar (State Machine Controls) */}
               <div className="p-4 bg-slate-950 rounded-xl border border-slate-800 space-y-3">

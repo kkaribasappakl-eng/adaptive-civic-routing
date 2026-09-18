@@ -13,7 +13,7 @@ const getHealth = async (req, res) => {
   res.status(200).json({
     success: true,
     message: "Adaptive Civic Routing API is running",
-    stage: 6,
+    stage: 7,
     service: "Adaptive Civic Routing Intelligence System",
     timestamp: new Date().toISOString(),
     database: {

@@ -109,16 +109,40 @@ export default function ComplaintFeed({ newComplaint }) {
       );
     };
 
+    const handleSlaWarning = (data) => {
+      setComplaints((prev) =>
+        prev.map((c) =>
+          c.id === data.complaintId || c.complaint_code === data.complaintCode
+            ? { ...c, sla_status: 'AT_RISK' }
+            : c
+        )
+      );
+    };
+
+    const handleSlaBreached = (data) => {
+      setComplaints((prev) =>
+        prev.map((c) =>
+          c.id === data.complaintId || c.complaint_code === data.complaintCode
+            ? { ...c, sla_status: 'SLA_BREACHED' }
+            : c
+        )
+      );
+    };
+
     socket.on('complaint:created', handleComplaintCreated);
     socket.on('routing:completed', handleRoutingCompleted);
     socket.on('routing:review_required', handleRoutingReview);
     socket.on('complaint:status_changed', handleStatusChanged);
+    socket.on('sla:warning', handleSlaWarning);
+    socket.on('sla:breached', handleSlaBreached);
 
     return () => {
       socket.off('complaint:created', handleComplaintCreated);
       socket.off('routing:completed', handleRoutingCompleted);
       socket.off('routing:review_required', handleRoutingReview);
       socket.off('complaint:status_changed', handleStatusChanged);
+      socket.off('sla:warning', handleSlaWarning);
+      socket.off('sla:breached', handleSlaBreached);
     };
   }, []);
 
@@ -223,6 +247,17 @@ export default function ComplaintFeed({ newComplaint }) {
                     }`}>
                       {item.status}
                     </span>
+                    {item.sla_status && (
+                      <span className={`px-1.5 py-0.5 rounded text-[8px] font-mono font-bold uppercase border ${
+                        item.sla_status === 'SLA_BREACHED'
+                          ? 'bg-rose-950 text-rose-300 border-rose-500/50'
+                          : item.sla_status === 'AT_RISK'
+                          ? 'bg-amber-950 text-amber-300 border-amber-500/50'
+                          : 'bg-emerald-950/60 text-emerald-400 border-emerald-500/30'
+                      }`}>
+                        {item.sla_status === 'SLA_BREACHED' ? 'SLA BREACH' : item.sla_status === 'AT_RISK' ? 'SLA AT RISK' : 'SLA OK'}
+                      </span>
+                    )}
                   </div>
                 </div>
 

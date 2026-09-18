@@ -9,6 +9,7 @@ const gisRoutes = require('./routes/gisRoutes');
 const jurisdictionRoutes = require('./routes/jurisdictionRoutes');
 const complaintRoutes = require('./routes/complaintRoutes');
 const routingRoutes = require('./routes/routingRoutes');
+const slaRoutes = require('./routes/slaRoutes');
 const { notFoundHandler, errorHandler } = require('./middleware/errorMiddleware');
 
 const app = express();
@@ -46,6 +47,7 @@ app.use('/api/gis', gisRoutes);
 app.use('/api/jurisdictions', jurisdictionRoutes);
 app.use('/api/complaints', complaintRoutes);
 app.use('/api/routing', routingRoutes);
+app.use('/api/sla', slaRoutes);
 
 // Root informational endpoint
 app.get('/', (req, res) => {

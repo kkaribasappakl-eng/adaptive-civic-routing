@@ -203,6 +203,11 @@ const getComplaintWithFullLifecycle = async (complaintIdOrCode) => {
       latitude,
       longitude,
       status,
+      routed_at,
+      sla_warning_at,
+      sla_target_at,
+      sla_status,
+      sla_breached_at,
       created_at,
       updated_at,
       ST_AsGeoJSON(location)::json AS geojson

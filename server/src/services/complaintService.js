@@ -277,6 +277,11 @@ const listComplaints = async (limit = 20, offset = 0, category = null) => {
       longitude,
       citizen_contact,
       status,
+      routed_at,
+      sla_warning_at,
+      sla_target_at,
+      sla_status,
+      sla_breached_at,
       created_at,
       ST_AsGeoJSON(location)::json AS geojson
     FROM complaints
@@ -326,6 +331,11 @@ const getComplaintById = async (idOrCode) => {
       longitude,
       citizen_contact,
       status,
+      routed_at,
+      sla_warning_at,
+      sla_target_at,
+      sla_status,
+      sla_breached_at,
       metadata,
       created_at,
       updated_at,
