@@ -284,6 +284,16 @@ const routeComplaint = async (complaintIdOrCode) => {
     console.warn('[Stage 8 Notification] Routing notification warning:', notifErr.message);
   }
 
+  // Stage 9: Automatically create an OPEN review case in complaint_reviews if HUMAN_REVIEW
+  if (routingStatus === 'HUMAN_REVIEW') {
+    try {
+      const { createReviewCase } = require('./reviewService');
+      await createReviewCase(complaint.id, reason, 'system_routing_engine');
+    } catch (revErr) {
+      console.warn('[Stage 9 Review Case] Warning creating review case:', revErr.message);
+    }
+  }
+
   return {
     alreadyRouted: false,
     decision: fullDecision

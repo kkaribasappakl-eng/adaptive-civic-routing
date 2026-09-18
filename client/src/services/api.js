@@ -640,6 +640,142 @@ export const markAllGlobalNotificationsRead = async () => {
   }
 };
 
+/**
+ * Stage 9: Fetch review queue cases with status filters & search
+ * GET /api/reviews
+ */
+export const getReviews = async (params = {}) => {
+  try {
+    const response = await api.get('/reviews', { params });
+    return {
+      success: true,
+      data: response.data.data
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: error.response?.data?.error || error.message
+    };
+  }
+};
+
+/**
+ * Stage 9: Get complete review case dossier
+ * GET /api/reviews/:reviewId
+ */
+export const getReviewDetail = async (reviewId) => {
+  try {
+    const response = await api.get(`/reviews/${reviewId}`);
+    return {
+      success: true,
+      data: response.data.data
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: error.response?.data?.error || error.message
+    };
+  }
+};
+
+/**
+ * Stage 9: Start review on case
+ * POST /api/reviews/:reviewId/start
+ */
+export const startReview = async (reviewId, reviewerName, note = '') => {
+  try {
+    const response = await api.post(`/reviews/${reviewId}/start`, { reviewerName, note });
+    return {
+      success: true,
+      data: response.data.data,
+      message: response.data.message
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: error.response?.data?.error || error.message
+    };
+  }
+};
+
+/**
+ * Stage 9: Resolve review case (ROUTE_TO_AUTHORITY, RETURN_TO_TRIAGE, CLOSE_REVIEW)
+ * POST /api/reviews/:reviewId/resolve
+ */
+export const resolveReview = async (reviewId, payload) => {
+  try {
+    const response = await api.post(`/reviews/${reviewId}/resolve`, payload);
+    return {
+      success: true,
+      data: response.data.data,
+      message: response.data.message
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: error.response?.data?.error || error.message
+    };
+  }
+};
+
+/**
+ * Stage 9: Mark review case unroutable
+ * POST /api/reviews/:reviewId/unroutable
+ */
+export const markReviewUnroutable = async (reviewId, reviewerName, reason) => {
+  try {
+    const response = await api.post(`/reviews/${reviewId}/unroutable`, { reviewerName, reason });
+    return {
+      success: true,
+      data: response.data.data,
+      message: response.data.message
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: error.response?.data?.error || error.message
+    };
+  }
+};
+
+/**
+ * Stage 9: Fetch append-only review action audit trail
+ * GET /api/reviews/:reviewId/actions
+ */
+export const getReviewActions = async (reviewId) => {
+  try {
+    const response = await api.get(`/reviews/${reviewId}/actions`);
+    return {
+      success: true,
+      data: response.data.data
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: error.response?.data?.error || error.message
+    };
+  }
+};
+
+/**
+ * Stage 9: Fetch real authorities and departments from PostgreSQL for operator assignment
+ * GET /api/reviews/meta/authorities
+ */
+export const getReviewAuthorities = async () => {
+  try {
+    const response = await api.get('/reviews/meta/authorities');
+    return {
+      success: true,
+      data: response.data.data
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: error.response?.data?.error || error.message
+    };
+  }
+};
+
 export default api;
 
 

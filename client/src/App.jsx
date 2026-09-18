@@ -6,13 +6,14 @@ import VersionManager from './components/VersionManager';
 import ComplaintForm from './components/ComplaintForm';
 import ComplaintFeed from './components/ComplaintFeed';
 import RoutingView from './components/RoutingView';
+import ReviewWorkspace from './components/ReviewWorkspace';
 import CaseTrackerModal from './components/CaseTrackerModal';
 import { checkApiHealth, getDatabaseSystemStatus } from './services/api';
 import socket from './services/socket';
 import { Compass, Database, Layers, ShieldCheck, FileText, Radio, CheckCircle2, Cpu } from 'lucide-react';
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState('complaints'); // 'complaints' | 'routing' | 'jurisdictions'
+  const [activeTab, setActiveTab] = useState('complaints'); // 'complaints' | 'routing' | 'review' | 'jurisdictions'
   const [apiHealth, setApiHealth] = useState(null);
   const [dbStatus, setDbStatus] = useState(null);
   const [socketConnected, setSocketConnected] = useState(socket.connected);
@@ -137,6 +138,11 @@ export default function App() {
           /* STAGE 5 — DETERMINISTIC CIVIC ROUTING ENGINE        */
           /* =================================================== */
           <RoutingView />
+        ) : activeTab === 'review' ? (
+          /* =================================================== */
+          /* STAGE 9 — OPERATOR REVIEW & HUMAN-IN-THE-LOOP       */
+          /* =================================================== */
+          <ReviewWorkspace onSelectComplaint={(id) => setTrackingComplaintId(id)} />
         ) : (
           /* =================================================== */
           /* STAGES 2 & 3 — GIS FOUNDATION & JURISDICTIONS       */
@@ -181,7 +187,7 @@ export default function App() {
 
       {/* Civic Footer */}
       <footer className="border-t border-slate-900 bg-slate-950/80 px-6 py-4 text-center text-xs text-slate-500">
-        Adaptive Civic Routing Intelligence System • HackMysuru Sub-Problem: Routing • Stage 8: Citizen Notifications & Real-Time Updates
+        Adaptive Civic Routing Intelligence System • HackMysuru Sub-Problem: Routing • Stage 9: Operator Review & Human-in-the-Loop Workflow
       </footer>
     </div>
   );
