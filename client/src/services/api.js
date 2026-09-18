@@ -207,4 +207,93 @@ export const getAuditHistory = async () => {
   }
 };
 
+/**
+ * Stage 4: AI Issue Classification
+ * POST /api/complaints/classify
+ */
+export const classifyComplaintIssue = async (formData) => {
+  try {
+    const response = await api.post('/complaints/classify', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+    return {
+      success: true,
+      data: response.data
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: error.response?.data?.error || error.message
+    };
+  }
+};
+
+/**
+ * Stage 4: Submit New Citizen Complaint
+ * POST /api/complaints
+ */
+export const submitCitizenComplaint = async (formData) => {
+  try {
+    const response = await api.post('/complaints', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    });
+    return {
+      success: true,
+      data: response.data.data,
+      duplicateWarning: response.data.duplicateWarning,
+      message: response.data.message
+    };
+  } catch (error) {
+    return {
+      success: false,
+      status: error.response?.status,
+      error: error.response?.data?.error || error.message,
+      details: error.response?.data?.details || []
+    };
+  }
+};
+
+/**
+ * Stage 4: Fetch Recent Complaints List
+ * GET /api/complaints
+ */
+export const fetchRecentComplaints = async (limit = 20, offset = 0, category = null) => {
+  try {
+    const params = { limit, offset };
+    if (category) params.category = category;
+    const response = await api.get('/complaints', { params });
+    return {
+      success: true,
+      data: response.data.data,
+      total: response.data.total
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: error.response?.data?.error || error.message
+    };
+  }
+};
+
+/**
+ * Stage 4: Check for potential duplicate reports
+ * GET /api/complaints/check-duplicate
+ */
+export const checkDuplicateReports = async (lat, lng, category) => {
+  try {
+    const response = await api.get('/complaints/check-duplicate', {
+      params: { lat, lng, category }
+    });
+    return {
+      success: true,
+      data: response.data.data
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: error.response?.data?.error || error.message
+    };
+  }
+};
+
 export default api;

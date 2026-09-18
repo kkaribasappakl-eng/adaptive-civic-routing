@@ -38,3 +38,6 @@ Thumbs.db
 .cache/
 .parcel-cache/
 .eslintcache
+
+# Uploads
+server/uploads/
