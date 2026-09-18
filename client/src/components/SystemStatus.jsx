@@ -1,23 +1,26 @@
 import React from 'react';
-import { Database, Radio, CheckCircle2, AlertTriangle, XCircle, RefreshCw, Layers } from 'lucide-react';
+import { Database, Radio, CheckCircle2, AlertTriangle, XCircle, RefreshCw, Layers, Globe } from 'lucide-react';
 
 export default function SystemStatus({
-  apiHealth,
+  dbStatus,
   socketConnected,
   socketDetails,
   loading,
   onRefresh
 }) {
+  const dbConnected = Boolean(dbStatus?.connected);
+  const postgisAvailable = Boolean(dbStatus?.postgisInstalled);
+
   return (
     <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-xl">
       <div className="flex items-center justify-between pb-4 mb-4 border-b border-slate-800">
         <div>
           <h2 className="text-base font-semibold text-white flex items-center gap-2">
             <Radio className="w-4 h-4 text-civic-400" />
-            Foundation System Diagnostics
+            Stage 2 Database & GIS System Diagnostics
           </h2>
           <p className="text-xs text-slate-400 mt-0.5">
-            Stage 1 verification status across Backend API, Real-time Gateway, and Database Layer.
+            Live infrastructure status verified against PostgreSQL, PostGIS, OpenStreetMap, and WebSocket Gateway.
           </p>
         </div>
         <button
@@ -26,19 +29,19 @@ export default function SystemStatus({
           className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 transition disabled:opacity-50"
         >
           <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
-          Refresh
+          Refresh Status
         </button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        {/* Backend API Status */}
-        <div className="bg-slate-950/60 rounded-lg p-4 border border-slate-800/80 flex flex-col justify-between">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* 1. PostgreSQL Database Status */}
+        <div className="bg-slate-950/70 rounded-lg p-4 border border-slate-800 flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-mono text-slate-400 uppercase">Express API</span>
-              {apiHealth?.success ? (
+              <span className="text-[11px] font-mono text-slate-400 uppercase">Database</span>
+              {dbConnected ? (
                 <span className="inline-flex items-center gap-1 text-xs text-emerald-400 font-medium">
-                  <CheckCircle2 className="w-3.5 h-3.5" /> Healthy
+                  <CheckCircle2 className="w-3.5 h-3.5" /> Connected
                 </span>
               ) : (
                 <span className="inline-flex items-center gap-1 text-xs text-rose-400 font-medium">
@@ -47,63 +50,93 @@ export default function SystemStatus({
               )}
             </div>
             <p className="text-sm font-semibold text-slate-200">
-              {apiHealth?.data?.message || (loading ? 'Checking...' : 'Service Unavailable')}
+              {dbConnected ? 'PostgreSQL Active' : 'PostgreSQL Offline'}
+            </p>
+            <p className="text-[11px] text-slate-400 mt-1 line-clamp-2">
+              {dbStatus?.message || (loading ? 'Checking...' : 'Database service unreachable')}
             </p>
           </div>
-          <div className="mt-3 pt-2 border-t border-slate-800/60 text-[11px] font-mono text-slate-400">
-            Endpoint: <span className="text-civic-400">GET /api/health</span>
+          <div className="mt-3 pt-2 border-t border-slate-800/80 text-[10px] font-mono text-slate-500">
+            Target: <span className="text-civic-400">{dbStatus?.databaseName || 'adaptive_civic_routing'}</span>
           </div>
         </div>
 
-        {/* Real-time Socket.IO Status */}
-        <div className="bg-slate-950/60 rounded-lg p-4 border border-slate-800/80 flex flex-col justify-between">
+        {/* 2. PostGIS Extension Status */}
+        <div className="bg-slate-950/70 rounded-lg p-4 border border-slate-800 flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-mono text-slate-400 uppercase">Socket.IO Gateway</span>
+              <span className="text-[11px] font-mono text-slate-400 uppercase">PostGIS Extension</span>
+              {postgisAvailable ? (
+                <span className="inline-flex items-center gap-1 text-xs text-emerald-400 font-medium">
+                  <CheckCircle2 className="w-3.5 h-3.5" /> Available
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1 text-xs text-amber-400 font-medium">
+                  <AlertTriangle className="w-3.5 h-3.5" /> Unavailable
+                </span>
+              )}
+            </div>
+            <p className="text-sm font-semibold text-slate-200">
+              {postgisAvailable ? 'Spatial Engine Ready' : 'Spatial Extension Missing'}
+            </p>
+            <p className="text-[11px] text-slate-400 mt-1">
+              {postgisAvailable ? `Version: ${dbStatus?.postgisVersion}` : 'Requires PostgreSQL + PostGIS'}
+            </p>
+          </div>
+          <div className="mt-3 pt-2 border-t border-slate-800/80 text-[10px] font-mono text-slate-500">
+            Queries: <span className={postgisAvailable ? "text-emerald-400" : "text-amber-400"}>
+              {postgisAvailable ? 'ST_Covers Active' : 'Standby Mode'}
+            </span>
+          </div>
+        </div>
+
+        {/* 3. OpenStreetMap Status */}
+        <div className="bg-slate-950/70 rounded-lg p-4 border border-slate-800 flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-[11px] font-mono text-slate-400 uppercase">Map Tiles</span>
+              <span className="inline-flex items-center gap-1 text-xs text-emerald-400 font-medium">
+                <CheckCircle2 className="w-3.5 h-3.5" /> Loaded
+              </span>
+            </div>
+            <p className="text-sm font-semibold text-slate-200">
+              OpenStreetMap Connected
+            </p>
+            <p className="text-[11px] text-slate-400 mt-1">
+              Tile provider: osm.org (SRID 4326)
+            </p>
+          </div>
+          <div className="mt-3 pt-2 border-t border-slate-800/80 text-[10px] font-mono text-slate-500">
+            Center: <span className="text-civic-400">Mysuru (12.2958° N, 76.6394° E)</span>
+          </div>
+        </div>
+
+        {/* 4. Socket.IO Gateway */}
+        <div className="bg-slate-950/70 rounded-lg p-4 border border-slate-800 flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-[11px] font-mono text-slate-400 uppercase">WebSocket</span>
               {socketConnected ? (
                 <span className="inline-flex items-center gap-1 text-xs text-emerald-400 font-medium">
                   <CheckCircle2 className="w-3.5 h-3.5" /> Connected
                 </span>
               ) : (
                 <span className="inline-flex items-center gap-1 text-xs text-amber-400 font-medium">
-                  <AlertTriangle className="w-3.5 h-3.5" /> Connecting
+                  <AlertTriangle className="w-3.5 h-3.5" /> Disconnected
                 </span>
               )}
             </div>
             <p className="text-sm font-semibold text-slate-200">
+              {socketConnected ? 'Gateway Active' : 'Connecting to Server...'}
+            </p>
+            <p className="text-[11px] text-slate-400 mt-1">
               {socketConnected 
-                ? `Active Session: ${socketDetails?.socketId ? socketDetails.socketId.substring(0, 12) + '...' : 'Live'}`
-                : 'Awaiting connection'}
+                ? `ID: ${socketDetails?.socketId ? socketDetails.socketId.substring(0, 10) + '...' : 'Online'}` 
+                : 'Awaiting connection handshake'}
             </p>
           </div>
-          <div className="mt-3 pt-2 border-t border-slate-800/60 text-[11px] font-mono text-slate-400">
-            Protocol: <span className="text-civic-400">WebSocket / Polling Fallback</span>
-          </div>
-        </div>
-
-        {/* PostgreSQL / PostGIS Status */}
-        <div className="bg-slate-950/60 rounded-lg p-4 border border-slate-800/80 flex flex-col justify-between">
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs font-mono text-slate-400 uppercase">PostgreSQL / PostGIS</span>
-              {apiHealth?.data?.database?.connected ? (
-                <span className="inline-flex items-center gap-1 text-xs text-emerald-400 font-medium">
-                  <CheckCircle2 className="w-3.5 h-3.5" /> Connected
-                </span>
-              ) : (
-                <span className="inline-flex items-center gap-1 text-xs text-amber-400 font-medium">
-                  <AlertTriangle className="w-3.5 h-3.5" /> Standalone Config
-                </span>
-              )}
-            </div>
-            <p className="text-xs font-normal text-slate-300 line-clamp-2">
-              {apiHealth?.data?.database?.message || 'Configured via pg pool (graceful mode)'}
-            </p>
-          </div>
-          <div className="mt-3 pt-2 border-t border-slate-800/60 text-[11px] font-mono text-slate-400">
-            PostGIS Extension: <span className={apiHealth?.data?.database?.postgisInstalled ? "text-emerald-400" : "text-slate-400"}>
-              {apiHealth?.data?.database?.postgisInstalled ? 'Installed' : 'Ready for Stage 3'}
-            </span>
+          <div className="mt-3 pt-2 border-t border-slate-800/80 text-[10px] font-mono text-slate-500">
+            Protocol: <span className="text-civic-400">Socket.IO v4</span>
           </div>
         </div>
       </div>

@@ -7,6 +7,9 @@
     "dev:server": "npm --prefix server run dev",
     "dev:client": "npm --prefix client run dev",
     "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
+    "db:migrate": "npm --prefix server run db:migrate",
+    "db:seed": "npm --prefix server run db:seed",
+    "db:status": "npm --prefix server run db:status",
     "install:all": "npm install && npm --prefix server install && npm --prefix client install"
   },
   "keywords": [

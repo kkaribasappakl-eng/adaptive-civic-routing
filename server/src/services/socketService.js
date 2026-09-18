@@ -14,7 +14,6 @@ const initSocketIO = (httpServer, clientOrigin) => {
   io.on('connection', (socket) => {
     console.log(`[Socket.IO] Client connected: ${socket.id}`);
 
-    // Emit initial connection handshake event to verify Stage 1 connectivity
     socket.emit('system:connected', {
       success: true,
       message: 'Adaptive Civic Routing Real-time Gateway Connected',

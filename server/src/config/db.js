@@ -6,31 +6,64 @@ let dbStatus = {
   connected: false,
   message: 'Database not initialized',
   error: null,
-  postgisInstalled: false
+  databaseName: process.env.DB_NAME || 'adaptive_civic_routing',
+  postgisInstalled: false,
+  postgisVersion: null
 };
 
-if (process.env.DATABASE_URL) {
-  try {
-    pool = new Pool({
-      connectionString: process.env.DATABASE_URL,
-      // Small timeout for health checks so startup is not blocked if DB is offline
+const getPoolConfig = () => {
+  const host = process.env.DB_HOST || 'localhost';
+  const port = parseInt(process.env.DB_PORT || '5432', 10);
+  const database = process.env.DB_NAME || 'adaptive_civic_routing';
+  const user = process.env.DB_USER || 'postgres';
+  const password = process.env.DB_PASSWORD;
+
+  if (password !== undefined && password !== '') {
+    return {
+      host,
+      port,
+      database,
+      user,
+      password: String(password),
       connectionTimeoutMillis: 3000,
       idleTimeoutMillis: 10000,
       max: 10
-    });
+    };
+  }
 
-    pool.on('error', (err) => {
-      console.warn('[PostgreSQL Pool Warning]', err.message);
-      dbStatus.connected = false;
-      dbStatus.error = err.message;
-    });
-  } catch (err) {
-    console.warn('[PostgreSQL Initialization Error]', err.message);
+  if (process.env.DATABASE_URL) {
+    return {
+      connectionString: process.env.DATABASE_URL,
+      connectionTimeoutMillis: 3000,
+      idleTimeoutMillis: 10000,
+      max: 10
+    };
+  }
+
+  return {
+    host,
+    port,
+    database,
+    user,
+    password: '',
+    connectionTimeoutMillis: 3000,
+    idleTimeoutMillis: 10000,
+    max: 10
+  };
+};
+
+try {
+  pool = new Pool(getPoolConfig());
+
+  pool.on('error', (err) => {
+    console.warn('[PostgreSQL Pool Warning]', err.message);
     dbStatus.connected = false;
     dbStatus.error = err.message;
-  }
-} else {
-  dbStatus.message = 'DATABASE_URL environment variable is not defined';
+  });
+} catch (err) {
+  console.warn('[PostgreSQL Initialization Error]', err.message);
+  dbStatus.connected = false;
+  dbStatus.error = err.message;
 }
 
 /**
@@ -39,19 +72,24 @@ if (process.env.DATABASE_URL) {
  */
 const checkDatabaseHealth = async () => {
   if (!pool) {
-    return {
+    dbStatus = {
       connected: false,
-      message: 'PostgreSQL pool not configured (check DATABASE_URL in .env)',
-      error: 'No pool instance'
+      message: 'PostgreSQL connection pool not configured',
+      error: 'No pool instance',
+      databaseName: process.env.DB_NAME || 'adaptive_civic_routing',
+      postgisInstalled: false,
+      postgisVersion: null
     };
+    return dbStatus;
   }
 
   try {
     const client = await pool.connect();
     try {
       const dbRes = await client.query('SELECT current_database(), version()');
-      
-      // Check for PostGIS extension availability
+      const dbName = dbRes.rows[0].current_database;
+
+      // Check for PostGIS extension availability and version
       let postgisInstalled = false;
       let postgisVersion = null;
       try {
@@ -60,14 +98,16 @@ const checkDatabaseHealth = async () => {
         postgisVersion = gisRes.rows[0].postgis_version;
       } catch {
         postgisInstalled = false;
+        postgisVersion = null;
       }
 
       dbStatus = {
         connected: true,
-        database: dbRes.rows[0].current_database,
+        databaseName: dbName,
         message: 'PostgreSQL connection successful',
         postgisInstalled,
-        postgisVersion
+        postgisVersion,
+        error: null
       };
       return dbStatus;
     } finally {
@@ -76,8 +116,11 @@ const checkDatabaseHealth = async () => {
   } catch (error) {
     dbStatus = {
       connected: false,
-      message: 'Unable to connect to PostgreSQL database. Server will operate with degraded DB features.',
-      error: error.message
+      databaseName: process.env.DB_NAME || 'adaptive_civic_routing',
+      message: 'Unable to connect to PostgreSQL database. Database server is offline or unreachable.',
+      error: error.message,
+      postgisInstalled: false,
+      postgisVersion: null
     };
     return dbStatus;
   }

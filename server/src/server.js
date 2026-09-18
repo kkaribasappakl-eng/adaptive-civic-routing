@@ -22,23 +22,20 @@ server.listen(PORT, async () => {
   console.log(` Health Endpoint: http://localhost:${PORT}/api/health`);
   console.log(`====================================================`);
 
-  // Check database connectivity gracefully
   const dbHealth = await checkDatabaseHealth();
   if (dbHealth.connected) {
-    console.log(`[Database] Connected successfully to PostgreSQL: ${dbHealth.database}`);
+    console.log(`[Database] Connected successfully to PostgreSQL: ${dbHealth.databaseName}`);
     if (dbHealth.postgisInstalled) {
       console.log(`[Database] PostGIS extension detected: ${dbHealth.postgisVersion}`);
     } else {
-      console.log(`[Database] Notice: PostGIS extension not detected. Future stages will require PostGIS.`);
+      console.log(`[Database] Notice: PostGIS extension not detected.`);
     }
   } else {
     console.warn(`[Database Status] Notice: PostgreSQL is currently offline / not connected.`);
     console.warn(`[Database Details] ${dbHealth.message} (${dbHealth.error || 'No error detail'})`);
-    console.log(`[Database Status] The server will continue running in Stage 1 standalone mode.`);
   }
 });
 
-// Handle uncaught exceptions gracefully
 process.on('unhandledRejection', (reason, promise) => {
   console.error('Unhandled Rejection at:', promise, 'reason:', reason);
 });

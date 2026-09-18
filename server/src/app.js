@@ -3,6 +3,8 @@ const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
 const healthRoutes = require('./routes/healthRoutes');
+const systemRoutes = require('./routes/systemRoutes');
+const gisRoutes = require('./routes/gisRoutes');
 const { notFoundHandler, errorHandler } = require('./middleware/errorMiddleware');
 
 const app = express();
@@ -28,17 +30,23 @@ if (process.env.NODE_ENV !== 'test') {
 app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 
-// Base API Routes
+// Core API Routes
 app.use('/api', healthRoutes);
+app.use('/api/system', systemRoutes);
+app.use('/api/gis', gisRoutes);
 
 // Root informational endpoint
 app.get('/', (req, res) => {
   res.status(200).json({
     project: 'Adaptive Civic Routing Intelligence System',
     subProblem: 'Routing',
-    stage: 1,
+    stage: 2,
     status: 'online',
-    healthCheck: '/api/health'
+    endpoints: {
+      health: '/api/health',
+      database: '/api/system/database',
+      gisTest: '/api/gis/test?lat=12.2958&lng=76.6394'
+    }
   });
 });
 
