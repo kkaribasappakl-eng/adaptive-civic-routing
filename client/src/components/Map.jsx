@@ -1,8 +1,8 @@
-import React, { useState } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, useMapEvents } from 'react-leaflet';
+import React, { useState, useEffect } from 'react';
+import { MapContainer, TileLayer, Marker, Popup, GeoJSON, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
-import { MapPin, Navigation, Info, Search, CheckCircle2, AlertCircle, RefreshCw } from 'lucide-react';
-import { testGisCoordinates } from '../services/api';
+import { MapPin, Navigation, Info, Search, CheckCircle2, AlertCircle, RefreshCw, Layers } from 'lucide-react';
+import { testGisCoordinates, getJurisdictionBoundaries } from '../services/api';
 
 // Fix default Leaflet icon paths in Vite bundles
 delete L.Icon.Default.prototype._getIconUrl;
@@ -13,8 +13,8 @@ L.Icon.Default.mergeOptions({
 });
 
 // Mysuru Central Coordinates
-const MYSURU_CENTER = [12.2958, 76.6394];
-const DEFAULT_ZOOM = 13;
+const MYSURU_CENTER = [12.3100, 76.6350];
+const DEFAULT_ZOOM = 12;
 
 // Map click handler component to capture coordinates
 function MapClickHandler({ onMapClick }) {
@@ -26,15 +26,35 @@ function MapClickHandler({ onMapClick }) {
   return null;
 }
 
-export default function Map() {
+export default function Map({ activeVersionCode, targetCoord }) {
   const [selectedCoord, setSelectedCoord] = useState({ lat: 12.2958, lng: 76.6394 });
   const [probeResult, setProbeResult] = useState(null);
+  const [boundaries, setBoundaries] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [selectedVersionOverride, setSelectedVersionOverride] = useState('');
 
-  const runGisProbe = async (lat, lng) => {
+  // Load boundaries GeoJSON whenever activeVersionCode changes
+  useEffect(() => {
+    const fetchBoundaries = async () => {
+      const res = await getJurisdictionBoundaries(activeVersionCode || null);
+      if (res.success && res.data) {
+        setBoundaries(res.data);
+      }
+    };
+    fetchBoundaries();
+  }, [activeVersionCode]);
+
+  // Sync if an external coordinate is passed (e.g. from VersionManager preview)
+  useEffect(() => {
+    if (targetCoord && targetCoord.lat && targetCoord.lng) {
+      runGisProbe(targetCoord.lat, targetCoord.lng);
+    }
+  }, [targetCoord]);
+
+  const runGisProbe = async (lat, lng, versionOverride = selectedVersionOverride) => {
     setLoading(true);
     setSelectedCoord({ lat, lng });
-    const res = await testGisCoordinates(lat, lng);
+    const res = await testGisCoordinates(lat, lng, versionOverride || null);
     setProbeResult(res);
     setLoading(false);
   };
@@ -43,26 +63,68 @@ export default function Map() {
     runGisProbe(lat, lng);
   };
 
+  // GeoJSON polygon styling
+  const getFeatureStyle = (feature) => {
+    const authCode = feature.properties.authorityCode;
+    if (authCode === 'MCC_DEMO') {
+      return {
+        color: '#0284c7', // Sky blue
+        weight: 2,
+        fillColor: '#0284c7',
+        fillOpacity: 0.22,
+        dashArray: feature.properties.versionStatus === 'DRAFT' ? '4, 4' : null
+      };
+    }
+    // MUDA or others
+    return {
+      color: '#10b981', // Emerald green
+      weight: 2,
+      fillColor: '#10b981',
+      fillOpacity: 0.22,
+      dashArray: feature.properties.versionStatus === 'DRAFT' ? '4, 4' : null
+    };
+  };
+
+  const onEachFeature = (feature, layer) => {
+    const props = feature.properties;
+    layer.bindTooltip(
+      `<strong>${props.name}</strong><br/>Authority: ${props.authorityName}<br/>Code: ${props.code} (${props.versionCode})`,
+      { sticky: true, className: 'leaflet-tooltip-dark' }
+    );
+  };
+
   return (
     <div className="relative w-full h-full rounded-xl overflow-hidden border border-slate-800 bg-slate-900 shadow-2xl flex flex-col">
       {/* Map Header Toolbar with GIS Test Probe Controls */}
       <div className="px-4 py-3 bg-slate-900 border-b border-slate-800 flex flex-wrap items-center justify-between gap-3 text-xs">
         <div className="flex items-center gap-2 text-slate-300">
           <MapPin className="w-4 h-4 text-civic-400" />
-          <span className="font-semibold text-white">Mysuru GIS Probe (Stage 2)</span>
+          <span className="font-semibold text-white">PostGIS Spatial Probe</span>
           <span className="text-slate-400 font-mono">
             {selectedCoord.lat.toFixed(4)}° N, {selectedCoord.lng.toFixed(4)}° E
           </span>
+          {activeVersionCode && (
+            <span className="px-2 py-0.5 rounded bg-emerald-950 border border-emerald-500/40 text-emerald-400 font-mono text-[10px]">
+              Active: {activeVersionCode}
+            </span>
+          )}
         </div>
 
         {/* Preset Coordinate Testing Buttons */}
         <div className="flex flex-wrap items-center gap-1.5 font-mono text-[11px]">
-          <span className="text-slate-400 text-xs font-sans mr-1">Test Coordinates:</span>
+          <span className="text-slate-400 text-xs font-sans mr-1">Presets:</span>
+          <button
+            onClick={() => handlePresetSelect(12.3150, 76.6500)}
+            className="px-2.5 py-1 rounded bg-amber-950/50 hover:bg-amber-900/60 text-amber-300 border border-amber-500/50 transition font-bold"
+            title="Coordinate X: Transfers from MCC to MUDA in V2"
+          >
+            ★ Coord X (12.3150, 76.6500)
+          </button>
           <button
             onClick={() => handlePresetSelect(12.2958, 76.6394)}
             className="px-2.5 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 transition"
           >
-            Central Mysuru (MCC)
+            Central Palace (MCC)
           </button>
           <button
             onClick={() => handlePresetSelect(12.3400, 76.6000)}
@@ -102,6 +164,16 @@ export default function Map() {
           />
           <MapClickHandler onMapClick={(lat, lng) => runGisProbe(lat, lng)} />
 
+          {/* Real PostGIS GeoJSON Polygons */}
+          {boundaries && boundaries.features && boundaries.features.length > 0 && (
+            <GeoJSON
+              key={`geojson-${activeVersionCode}-${boundaries.features.length}`}
+              data={boundaries}
+              style={getFeatureStyle}
+              onEachFeature={onEachFeature}
+            />
+          )}
+
           {/* Active Probe Marker (if within valid range) */}
           {selectedCoord.lat >= -90 && selectedCoord.lat <= 90 && (
             <Marker position={[selectedCoord.lat, selectedCoord.lng]}>
@@ -112,7 +184,7 @@ export default function Map() {
                     Lat: {selectedCoord.lat.toFixed(4)} | Lng: {selectedCoord.lng.toFixed(4)}
                   </p>
                   <p className="text-xs text-slate-600 mt-1">
-                    Click "Run GIS Query" or choose a preset to test PostGIS point-in-polygon resolution.
+                    Point tested against PostGIS ST_Covers.
                   </p>
                 </div>
               </Popup>
@@ -125,7 +197,7 @@ export default function Map() {
           <div className="flex items-center justify-between mb-2 pb-2 border-b border-slate-800">
             <span className="font-semibold text-white flex items-center gap-1.5">
               <Search className="w-3.5 h-3.5 text-civic-400" />
-              GIS Resolution Test Result
+              PostGIS Routing Resolution
             </span>
             <button
               onClick={() => runGisProbe(selectedCoord.lat, selectedCoord.lng)}
@@ -159,7 +231,7 @@ export default function Map() {
                       {probeResult.data.jurisdiction?.name}
                     </p>
                     <p className="text-[11px] text-slate-400 font-mono">
-                      Code: {probeResult.data.jurisdiction?.code} | Version: {probeResult.data.jurisdiction?.version}
+                      Code: {probeResult.data.jurisdiction?.code} | Version: <strong className="text-emerald-300">{probeResult.data.jurisdiction?.version}</strong>
                     </p>
                     <div className="mt-2 pt-1.5 border-t border-emerald-500/20 text-[11px]">
                       <span className="text-slate-400">Assigned Authority: </span>
@@ -196,16 +268,19 @@ export default function Map() {
           )}
         </div>
 
-        {/* Disclaimer in bottom corner */}
-        <div className="absolute bottom-4 left-4 z-[500] bg-slate-900/90 backdrop-blur-md p-3 rounded-lg border border-slate-700/60 shadow-lg text-xs max-w-xs">
-          <div className="flex items-start gap-2">
-            <Info className="w-4 h-4 text-civic-400 shrink-0 mt-0.5" />
-            <div>
-              <p className="font-medium text-slate-200">Demo Spatial Disclaimer</p>
-              <p className="text-[11px] text-slate-400 mt-0.5 leading-relaxed">
-                Demo jurisdiction polygons are synthetic test geometry and are not presented as official government boundaries.
-              </p>
-            </div>
+        {/* Legend in bottom corner */}
+        <div className="absolute bottom-4 left-4 z-[500] bg-slate-900/90 backdrop-blur-md p-3 rounded-lg border border-slate-700/60 shadow-lg text-xs max-w-xs space-y-1.5">
+          <div className="flex items-center gap-1.5 font-semibold text-slate-200">
+            <Layers className="w-3.5 h-3.5 text-civic-400" />
+            <span>PostGIS Boundary Layers</span>
+          </div>
+          <div className="flex items-center gap-2 text-[11px]">
+            <span className="w-3 h-3 rounded bg-sky-500/40 border border-sky-400 inline-block" />
+            <span className="text-slate-300">MCC (Mysuru City Corp)</span>
+          </div>
+          <div className="flex items-center gap-2 text-[11px]">
+            <span className="w-3 h-3 rounded bg-emerald-500/40 border border-emerald-400 inline-block" />
+            <span className="text-slate-300">MUDA (Urban Dev Authority)</span>
           </div>
         </div>
       </div>

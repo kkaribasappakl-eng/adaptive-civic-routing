@@ -13,8 +13,8 @@ export default function Header({ socketConnected, apiHealthy }) {
           <div>
             <h1 className="text-xl font-bold tracking-tight text-white flex items-center gap-2">
               Adaptive Civic Routing Intelligence System
-              <span className="text-xs uppercase font-mono px-2 py-0.5 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20">
-                Stage 1
+              <span className="text-xs uppercase font-mono px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                Stage 3
               </span>
             </h1>
             <p className="text-xs text-slate-400 font-medium">
@@ -26,13 +26,10 @@ export default function Header({ socketConnected, apiHealthy }) {
         {/* Center/Right: Navigation Placeholder & Real-Time Indicators */}
         <div className="flex flex-wrap items-center gap-3">
           <nav className="flex items-center gap-1 bg-slate-950/60 p-1 rounded-lg border border-slate-800 text-xs">
-            <span className="px-3 py-1.5 rounded-md bg-civic-600/30 text-civic-300 font-medium border border-civic-500/30">
-              Foundation Map
+            <span className="px-3 py-1.5 rounded-md bg-slate-800 text-slate-300 font-medium border border-slate-700">
+              GIS Foundation
             </span>
-            <span className="px-3 py-1.5 text-slate-500 cursor-not-allowed" title="Available in Stage 2+">
-              Complaints (Stage 2)
-            </span>
-            <span className="px-3 py-1.5 text-slate-500 cursor-not-allowed" title="Available in Stage 3+">
+            <span className="px-3 py-1.5 rounded-md bg-civic-600/30 text-civic-300 font-semibold border border-civic-500/30">
               Jurisdictions (Stage 3)
             </span>
             <span className="px-3 py-1.5 text-slate-500 cursor-not-allowed" title="Available in Stage 4+">

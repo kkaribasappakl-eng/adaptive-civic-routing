@@ -1,12 +1,12 @@
-const { validateCoordinates, getActiveJurisdictionForPoint } = require('../services/gisService');
+const { validateCoordinates, findJurisdictionByPoint } = require('../services/gisService');
 
 /**
  * GIS Test Controller
- * GET /api/gis/test?lat=...&lng=...
+ * GET /api/gis/test?lat=...&lng=...&version=... (version is optional, defaults to ACTIVE)
  */
 const testPointInPolygon = async (req, res, next) => {
   try {
-    const { lat, lng } = req.query;
+    const { lat, lng, version } = req.query;
 
     if (lat === undefined || lng === undefined) {
       return res.status(400).json({
@@ -24,7 +24,7 @@ const testPointInPolygon = async (req, res, next) => {
       });
     }
 
-    const gisResult = await getActiveJurisdictionForPoint(validation.latitude, validation.longitude);
+    const gisResult = await findJurisdictionByPoint(validation.latitude, validation.longitude, version || null);
 
     if (!gisResult.databaseAvailable) {
       return res.status(503).json({
