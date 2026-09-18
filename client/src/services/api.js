@@ -69,12 +69,50 @@ export const testGisCoordinates = async (lat, lng, version = null) => {
 };
 
 /**
- * Stage 3: Fetch all jurisdiction versions
+ * Stage 3 & 10: Fetch all jurisdiction versions
  * GET /api/jurisdictions/versions
  */
 export const getJurisdictionVersions = async () => {
   try {
     const response = await api.get('/jurisdictions/versions');
+    return {
+      success: true,
+      data: response.data.data
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: error.response?.data?.error || error.message
+    };
+  }
+};
+
+/**
+ * Stage 10: Create a new custom DRAFT version
+ * POST /api/jurisdictions/versions
+ */
+export const createJurisdictionVersion = async (payload) => {
+  try {
+    const response = await api.post('/jurisdictions/versions', payload);
+    return {
+      success: true,
+      data: response.data
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: error.response?.data?.error || error.message
+    };
+  }
+};
+
+/**
+ * Stage 10: Authoritatively validate boundaries of a version using PostGIS
+ * POST /api/jurisdictions/versions/:versionId/validate
+ */
+export const validateJurisdictionVersion = async (versionId) => {
+  try {
+    const response = await api.post(`/jurisdictions/versions/${versionId}/validate`);
     return {
       success: true,
       data: response.data.data
@@ -107,12 +145,12 @@ export const setupDemoV2 = async () => {
 };
 
 /**
- * Stage 3: Preview coordinate against a specific version (DRAFT or historical)
- * POST /api/jurisdictions/versions/:versionId/preview?lat=...&lng=...
+ * Stage 3 & 10: Preview coordinate against a specific version (DRAFT or historical)
+ * GET /api/jurisdictions/versions/:versionId/preview?lat=...&lng=...
  */
 export const previewCoordinateAgainstVersion = async (versionId, lat, lng) => {
   try {
-    const response = await api.post(`/jurisdictions/versions/${versionId}/preview`, null, {
+    const response = await api.get(`/jurisdictions/versions/${versionId}/preview`, {
       params: { lat, lng }
     });
     return {
@@ -127,8 +165,10 @@ export const previewCoordinateAgainstVersion = async (versionId, lat, lng) => {
   }
 };
 
+export const previewJurisdictionVersion = previewCoordinateAgainstVersion;
+
 /**
- * Stage 3: Compare two versions side-by-side
+ * Stage 3 & 10: Compare two versions side-by-side
  * GET /api/jurisdictions/versions/compare?from=...&to=...
  */
 export const compareVersions = async (from, to) => {
@@ -148,13 +188,22 @@ export const compareVersions = async (from, to) => {
   }
 };
 
+export const compareJurisdictionVersions = compareVersions;
+
 /**
- * Stage 3: Atomically activate a DRAFT version
+ * Stage 3 & 10: Atomically activate a DRAFT version inside PostgreSQL transaction
  * POST /api/jurisdictions/versions/:versionId/activate
  */
-export const activateJurisdictionVersion = async (versionId, operator = 'Civic Administrator') => {
+export const activateJurisdictionVersion = async (versionId, operatorOrPayload = 'Civic Administrator', maybeReason = null) => {
   try {
-    const response = await api.post(`/jurisdictions/versions/${versionId}/activate`, { operator });
+    const payload = typeof operatorOrPayload === 'object' && operatorOrPayload !== null
+      ? operatorOrPayload
+      : {
+          operator: operatorOrPayload,
+          reason: maybeReason || 'Administrative boundary activation'
+        };
+
+    const response = await api.post(`/jurisdictions/versions/${versionId}/activate`, payload);
     return {
       success: true,
       data: response.data
@@ -189,8 +238,8 @@ export const getJurisdictionBoundaries = async (version = null) => {
 };
 
 /**
- * Stage 3: Fetch audit trail of version activations
- * GET /api/jurisdictions/audit
+ * Stage 3 & 10: Fetch audit trail of version activations
+ * GET /api/jurisdictions/audit or GET /api/jurisdictions/versions/history
  */
 export const getAuditHistory = async () => {
   try {
@@ -206,6 +255,8 @@ export const getAuditHistory = async () => {
     };
   }
 };
+
+export const getJurisdictionAuditHistory = getAuditHistory;
 
 /**
  * Stage 4: AI Issue Classification

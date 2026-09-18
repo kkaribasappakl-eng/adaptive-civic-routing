@@ -66,29 +66,31 @@ export default function Map({ activeVersionCode, targetCoord }) {
   // GeoJSON polygon styling
   const getFeatureStyle = (feature) => {
     const authCode = feature.properties.authorityCode;
-    if (authCode === 'MCC_DEMO') {
-      return {
-        color: '#0284c7', // Sky blue
-        weight: 2,
-        fillColor: '#0284c7',
-        fillOpacity: 0.22,
-        dashArray: feature.properties.versionStatus === 'DRAFT' ? '4, 4' : null
-      };
-    }
-    // MUDA or others
+    const status = feature.properties.versionStatus;
+    const isDraft = status === 'DRAFT';
+    const isRetired = status === 'RETIRED';
+
+    const baseColor = authCode === 'MCC_DEMO' ? '#0284c7' : '#10b981';
+
     return {
-      color: '#10b981', // Emerald green
-      weight: 2,
-      fillColor: '#10b981',
-      fillOpacity: 0.22,
-      dashArray: feature.properties.versionStatus === 'DRAFT' ? '4, 4' : null
+      color: isRetired ? '#64748b' : baseColor,
+      weight: isDraft ? 2.5 : 2,
+      fillColor: isRetired ? '#475569' : baseColor,
+      fillOpacity: isRetired ? 0.12 : isDraft ? 0.28 : 0.22,
+      dashArray: isDraft ? '5, 5' : isRetired ? '2, 4' : null
     };
   };
 
   const onEachFeature = (feature, layer) => {
     const props = feature.properties;
+    const statusLabel = props.versionStatus === 'ACTIVE' 
+      ? '<span style="color:#34d399; font-weight:bold;">[ACTIVE]</span>' 
+      : props.versionStatus === 'DRAFT' 
+      ? '<span style="color:#fbbf24; font-weight:bold;">[DRAFT PREVIEW]</span>' 
+      : '<span style="color:#94a3b8; font-weight:bold;">[HISTORICAL]</span>';
+
     layer.bindTooltip(
-      `<strong>${props.name}</strong><br/>Authority: ${props.authorityName}<br/>Code: ${props.code} (${props.versionCode})`,
+      `<strong>${props.name}</strong> ${statusLabel}<br/>Authority: ${props.authorityName}<br/>Code: ${props.code} (${props.versionCode})<br/><em style="font-size:10px; color:#cbd5e1;">DEMO / SYNTHETIC BOUNDARIES</em>`,
       { sticky: true, className: 'leaflet-tooltip-dark' }
     );
   };

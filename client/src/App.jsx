@@ -57,14 +57,22 @@ export default function App() {
       setSocketDetails(data);
     };
 
+    const handleVersionActivated = (data) => {
+      if (data && data.versionCode) {
+        setActiveVersionCode(data.versionCode);
+      }
+    };
+
     socket.on('connect', handleConnect);
     socket.on('disconnect', handleDisconnect);
     socket.on('system:connected', handleSystemConnected);
+    socket.on('jurisdiction:version_activated', handleVersionActivated);
 
     return () => {
       socket.off('connect', handleConnect);
       socket.off('disconnect', handleDisconnect);
       socket.off('system:connected', handleSystemConnected);
+      socket.off('jurisdiction:version_activated', handleVersionActivated);
     };
   }, []);
 
@@ -187,7 +195,7 @@ export default function App() {
 
       {/* Civic Footer */}
       <footer className="border-t border-slate-900 bg-slate-950/80 px-6 py-4 text-center text-xs text-slate-500">
-        Adaptive Civic Routing Intelligence System • HackMysuru Sub-Problem: Routing • Stage 9: Operator Review & Human-in-the-Loop Workflow
+        Adaptive Civic Routing Intelligence System • HackMysuru Sub-Problem: Routing • Stage 10: Jurisdiction Boundary Update & Safe Version Management
       </footer>
     </div>
   );

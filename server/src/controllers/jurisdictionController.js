@@ -34,15 +34,59 @@ const getVersion = async (req, res, next) => {
   }
 };
 
+const createVersion = async (req, res, next) => {
+  try {
+    const { versionCode, notes, source, createdBy, jurisdictions } = req.body;
+    if (!versionCode) {
+      return res.status(400).json({
+        success: false,
+        error: 'Field "versionCode" is required to create a new draft version.'
+      });
+    }
+
+    const result = await versionService.createDraftVersion({
+      versionCode,
+      notes,
+      source,
+      createdBy,
+      jurisdictions
+    });
+
+    res.status(201).json(result);
+  } catch (error) {
+    res.status(400).json({
+      success: false,
+      error: error.message
+    });
+  }
+};
+
+const validateVersion = async (req, res, next) => {
+  try {
+    const { versionId } = req.params;
+    const report = await versionService.validateVersion(versionId);
+    res.status(200).json({
+      success: true,
+      data: report
+    });
+  } catch (error) {
+    res.status(400).json({
+      success: false,
+      error: error.message
+    });
+  }
+};
+
 const previewVersion = async (req, res, next) => {
   try {
     const { versionId } = req.params;
-    const { lat, lng } = req.query;
+    const lat = req.query.lat !== undefined ? req.query.lat : req.body.lat;
+    const lng = req.query.lng !== undefined ? req.query.lng : req.body.lng;
 
     if (lat === undefined || lng === undefined) {
       return res.status(400).json({
         success: false,
-        error: 'Both "lat" and "lng" query parameters are required for boundary preview.'
+        error: 'Both "lat" and "lng" parameters are required for boundary preview.'
       });
     }
 
@@ -59,12 +103,13 @@ const previewVersion = async (req, res, next) => {
 const activateVersion = async (req, res, next) => {
   try {
     const { versionId } = req.params;
-    const operator = req.body.operator || 'demo_administrator';
+    const operator = req.body.operator || req.body.activated_by || 'Civic Administrator';
+    const reason = req.body.reason || req.body.activation_reason || 'Administrative boundary activation';
 
-    const result = await versionService.activateVersion(versionId, operator);
+    const result = await versionService.activateVersion(versionId, operator, reason);
     res.status(200).json(result);
   } catch (error) {
-    // Return 400 with clean error message if transition is invalid
+    // Return 400 with clear validation/transition error message
     res.status(400).json({
       success: false,
       error: error.message
@@ -132,6 +177,8 @@ const getAuditHistory = async (req, res, next) => {
 module.exports = {
   listVersions,
   getVersion,
+  createVersion,
+  validateVersion,
   previewVersion,
   activateVersion,
   compareVersions,

@@ -14,12 +14,12 @@ export default function Header({ socketConnected, apiHealthy, activeTab = 'compl
           <div>
             <h1 className="text-xl font-bold tracking-tight text-white flex items-center gap-2">
               Adaptive Civic Routing Intelligence System
-              <span className="text-xs uppercase font-mono px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">
-                Stage 9
+              <span className="text-xs uppercase font-mono px-2 py-0.5 rounded bg-civic-500/10 text-civic-400 border border-civic-500/20">
+                Stage 10
               </span>
             </h1>
             <p className="text-xs text-slate-400 font-medium">
-              HackMysuru • Operator Review & Human-in-the-Loop
+              HackMysuru • Jurisdiction Boundary & Safe Version Management
             </p>
           </div>
         </div>
@@ -65,7 +65,7 @@ export default function Header({ socketConnected, apiHealthy, activeTab = 'compl
                   : 'text-slate-400 hover:text-slate-200'
               }`}
             >
-              Jurisdictions & GIS (Stage 2/3)
+              Jurisdiction Manager (Stage 10)
             </button>
           </nav>
 
