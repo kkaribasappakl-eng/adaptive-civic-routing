@@ -50,5 +50,16 @@ router.get('/:complaintId/sla', getComplaintSlaHandler);
 // Stage 7: Evaluate complaint SLA
 router.post('/:complaintId/sla/evaluate', evaluateComplaintSlaHandler);
 
+// Stage 8: Complaint citizen notifications
+const {
+  getComplaintNotificationsHandler,
+  getUnreadComplaintNotificationsHandler,
+  markAllComplaintNotificationsReadHandler
+} = require('../controllers/notificationController');
+
+router.get('/:complaintId/notifications', getComplaintNotificationsHandler);
+router.get('/:complaintId/notifications/unread', getUnreadComplaintNotificationsHandler);
+router.patch('/:complaintId/notifications/read-all', markAllComplaintNotificationsReadHandler);
+
 module.exports = router;
 

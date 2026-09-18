@@ -10,6 +10,7 @@ const jurisdictionRoutes = require('./routes/jurisdictionRoutes');
 const complaintRoutes = require('./routes/complaintRoutes');
 const routingRoutes = require('./routes/routingRoutes');
 const slaRoutes = require('./routes/slaRoutes');
+const notificationRoutes = require('./routes/notificationRoutes');
 const { notFoundHandler, errorHandler } = require('./middleware/errorMiddleware');
 
 const app = express();
@@ -23,7 +24,7 @@ app.use(helmet({
 const allowedOrigin = process.env.CLIENT_URL || 'http://localhost:5173';
 app.use(cors({
   origin: allowedOrigin,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true
 }));
@@ -48,13 +49,14 @@ app.use('/api/jurisdictions', jurisdictionRoutes);
 app.use('/api/complaints', complaintRoutes);
 app.use('/api/routing', routingRoutes);
 app.use('/api/sla', slaRoutes);
+app.use('/api/notifications', notificationRoutes);
 
 // Root informational endpoint
 app.get('/', (req, res) => {
   res.status(200).json({
     project: 'Adaptive Civic Routing Intelligence System',
     subProblem: 'Routing',
-    stage: 5,
+    stage: 8,
     status: 'online',
     endpoints: {
       health: '/api/health',
@@ -62,7 +64,9 @@ app.get('/', (req, res) => {
       gisTest: '/api/gis/test?lat=12.2958&lng=76.6394',
       jurisdictions: '/api/jurisdictions/versions',
       complaints: '/api/complaints',
-      routing: '/api/routing/decisions'
+      routing: '/api/routing/decisions',
+      sla: '/api/sla/overview',
+      notifications: '/api/notifications'
     }
   });
 });

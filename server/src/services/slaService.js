@@ -299,6 +299,42 @@ const evaluateComplaintSla = async (complaintId, options = {}) => {
 
     await client.query('COMMIT');
 
+    // Stage 8: Persist SLA citizen notification in PostgreSQL
+    if (statusChanged) {
+      try {
+        const { createNotification } = require('./notificationService');
+        if (newSlaStatus === 'AT_RISK') {
+          await createNotification({
+            complaintId: complaint.id,
+            notificationType: 'SLA_WARNING',
+            title: 'SLA Warning: Case At Risk',
+            message: `Resolution time for complaint ${complaint.complaint_code} (${complaint.category}) has entered its warning threshold.`,
+            metadata: {
+              category: complaint.category,
+              warningAt: complaint.sla_warning_at,
+              targetAt: complaint.sla_target_at
+            },
+            idempotencyKey: `SLA_WARNING:${complaint.id}`
+          });
+        } else if (newSlaStatus === 'SLA_BREACHED') {
+          await createNotification({
+            complaintId: complaint.id,
+            notificationType: 'SLA_BREACHED',
+            title: 'SLA Breached: Case Escalated',
+            message: `Resolution deadline for complaint ${complaint.complaint_code} (${complaint.category}) was exceeded. Case escalated.`,
+            metadata: {
+              category: complaint.category,
+              breachedAt: complaint.sla_breached_at,
+              targetAt: complaint.sla_target_at
+            },
+            idempotencyKey: `SLA_BREACHED:${complaint.id}`
+          });
+        }
+      } catch (notifErr) {
+        console.warn('[Stage 8 Notification] SLA notification warning:', notifErr.message);
+      }
+    }
+
     return {
       success: true,
       complaintId: complaint.id,

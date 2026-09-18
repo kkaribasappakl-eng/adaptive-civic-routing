@@ -235,6 +235,25 @@ const createComplaint = async (inputData, photoRelativeUrl = null) => {
     console.warn('[Status History] Initial history log error:', histErr.message);
   }
 
+  // Stage 8: Create COMPLAINT_SUBMITTED notification in PostgreSQL
+  try {
+    const { createNotification } = require('./notificationService');
+    await createNotification({
+      complaintId: savedComplaint.id,
+      notificationType: 'COMPLAINT_SUBMITTED',
+      title: 'Complaint Registered',
+      message: `Complaint ${savedComplaint.complaint_code} has been successfully registered under ${savedComplaint.category}.`,
+      metadata: {
+        complaintCode: savedComplaint.complaint_code,
+        category: savedComplaint.category,
+        status: savedComplaint.status
+      },
+      idempotencyKey: `COMPLAINT_SUBMITTED:${savedComplaint.id}`
+    });
+  } catch (notifErr) {
+    console.warn('[Stage 8 Notification] COMPLAINT_SUBMITTED notification warning:', notifErr.message);
+  }
+
   // Broadcast real-time Socket.IO event with safe metadata
   try {
     const io = getIO();
@@ -258,6 +277,45 @@ const createComplaint = async (inputData, photoRelativeUrl = null) => {
     complaint: savedComplaint,
     duplicateWarning: duplicateInfo
   };
+};
+
+/**
+ * Stage 8: Updates complaint category and creates CATEGORY_UPDATED notification.
+ */
+const updateComplaintCategory = async (complaintId, newCategory, reason = 'Category reassigned by civic operator') => {
+  const normalizedCategory = (newCategory || '').toUpperCase().trim();
+  if (!CONTROLLED_CATEGORIES.includes(normalizedCategory)) {
+    throw new Error(`Invalid category '${newCategory}'. Allowed categories: ${CONTROLLED_CATEGORIES.join(', ')}.`);
+  }
+
+  const query = `
+    UPDATE complaints
+    SET category = $1, updated_at = CURRENT_TIMESTAMP
+    WHERE id = $2
+    RETURNING id, complaint_code, category, status;
+  `;
+  const res = await pool.query(query, [normalizedCategory, complaintId]);
+  if (res.rows.length === 0) {
+    throw new Error(`Complaint '${complaintId}' not found.`);
+  }
+
+  const updatedComplaint = res.rows[0];
+
+  // Stage 8: Persist CATEGORY_UPDATED notification
+  const { createNotification } = require('./notificationService');
+  await createNotification({
+    complaintId: updatedComplaint.id,
+    notificationType: 'CATEGORY_UPDATED',
+    title: 'Category Updated',
+    message: `Complaint ${updatedComplaint.complaint_code} category updated to ${normalizedCategory}. Reason: ${reason}`,
+    metadata: {
+      category: normalizedCategory,
+      reason
+    },
+    idempotencyKey: `CATEGORY_UPDATED:${updatedComplaint.id}:${normalizedCategory}`
+  });
+
+  return updatedComplaint;
 };
 
 /**
@@ -353,5 +411,6 @@ module.exports = {
   generateNextComplaintCode,
   createComplaint,
   listComplaints,
-  getComplaintById
+  getComplaintById,
+  updateComplaintCategory
 };

@@ -1,7 +1,8 @@
 import React from 'react';
 import { ShieldCheck, MapPin, Activity, Terminal } from 'lucide-react';
+import NotificationCenter from './NotificationCenter';
 
-export default function Header({ socketConnected, apiHealthy, activeTab = 'complaints', onTabChange }) {
+export default function Header({ socketConnected, apiHealthy, activeTab = 'complaints', onTabChange, onSelectComplaint }) {
   return (
     <header className="bg-slate-900/90 backdrop-blur border-b border-slate-800 px-6 py-4 sticky top-0 z-50">
       <div className="max-w-7xl mx-auto flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -14,16 +15,16 @@ export default function Header({ socketConnected, apiHealthy, activeTab = 'compl
             <h1 className="text-xl font-bold tracking-tight text-white flex items-center gap-2">
               Adaptive Civic Routing Intelligence System
               <span className="text-xs uppercase font-mono px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                Stage 7
+                Stage 8
               </span>
             </h1>
             <p className="text-xs text-slate-400 font-medium">
-              HackMysuru • SLA Tracking & Escalation
+              HackMysuru • Citizen Notifications & Real-Time Updates
             </p>
           </div>
         </div>
 
-        {/* Center/Right: Navigation Tabs & Real-Time Indicators */}
+        {/* Center/Right: Navigation Tabs, Notifications & Real-Time Indicators */}
         <div className="flex flex-wrap items-center gap-3">
           <nav className="flex items-center gap-1 bg-slate-950/60 p-1 rounded-lg border border-slate-800 text-xs">
             <button
@@ -57,6 +58,9 @@ export default function Header({ socketConnected, apiHealthy, activeTab = 'compl
               Jurisdictions & GIS (Stage 2/3)
             </button>
           </nav>
+
+          {/* Stage 8: Real-Time Notification Center */}
+          <NotificationCenter onSelectComplaint={onSelectComplaint} />
 
           {/* Quick status pills */}
           <div className="flex items-center gap-2 text-xs font-mono">

@@ -150,6 +150,54 @@ const updateComplaintStatus = async (complaintId, targetStatus, reason = null, c
     console.warn('[Socket.IO] complaint:status_changed broadcast warning:', socketErr.message);
   }
 
+  // Stage 8: Persist citizen notifications in PostgreSQL
+  try {
+    const { createNotification } = require('./notificationService');
+    // General status changed notification
+    await createNotification({
+      complaintId: updatedComplaint.id,
+      notificationType: 'STATUS_CHANGED',
+      title: `Status: ${updatedComplaint.status}`,
+      message: `Complaint ${updatedComplaint.complaint_code} status updated to ${updatedComplaint.status}.`,
+      metadata: {
+        previousStatus,
+        newStatus: updatedComplaint.status,
+        reason: historyRecord.reason,
+        changedBy: historyRecord.changed_by
+      },
+      idempotencyKey: `STATUS_CHANGED:${updatedComplaint.id}:${updatedComplaint.status}`
+    });
+
+    // Specific terminal / milestone event notifications
+    if (updatedComplaint.status === 'RESOLVED') {
+      await createNotification({
+        complaintId: updatedComplaint.id,
+        notificationType: 'CASE_RESOLVED',
+        title: 'Case Resolved',
+        message: `Complaint ${updatedComplaint.complaint_code} has been successfully resolved.`,
+        metadata: {
+          resolvedAt: historyRecord.created_at,
+          reason: historyRecord.reason
+        },
+        idempotencyKey: `CASE_RESOLVED:${updatedComplaint.id}`
+      });
+    } else if (updatedComplaint.status === 'CLOSED') {
+      await createNotification({
+        complaintId: updatedComplaint.id,
+        notificationType: 'CASE_CLOSED',
+        title: 'Case Closed',
+        message: `Complaint ${updatedComplaint.complaint_code} is officially closed.`,
+        metadata: {
+          closedAt: historyRecord.created_at,
+          reason: historyRecord.reason
+        },
+        idempotencyKey: `CASE_CLOSED:${updatedComplaint.id}`
+      });
+    }
+  } catch (notifErr) {
+    console.warn('[Stage 8 Notification] Status transition notification warning:', notifErr.message);
+  }
+
   return {
     complaint: updatedComplaint,
     previousStatus,

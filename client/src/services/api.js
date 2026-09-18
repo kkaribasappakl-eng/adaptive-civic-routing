@@ -498,5 +498,148 @@ export const getSlaOverview = async () => {
   }
 };
 
+/**
+ * Stage 8: Fetch all notifications for a specific complaint
+ * GET /api/complaints/:complaintId/notifications
+ */
+export const getComplaintNotifications = async (complaintId) => {
+  try {
+    const response = await api.get(`/complaints/${complaintId}/notifications`);
+    return {
+      success: true,
+      data: response.data.data,
+      total: response.data.total
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: error.response?.data?.error || error.message
+    };
+  }
+};
+
+/**
+ * Stage 8: Fetch unread notifications for a specific complaint
+ * GET /api/complaints/:complaintId/notifications/unread
+ */
+export const getComplaintUnreadNotifications = async (complaintId) => {
+  try {
+    const response = await api.get(`/complaints/${complaintId}/notifications/unread`);
+    return {
+      success: true,
+      data: response.data.data,
+      total: response.data.total
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: error.response?.data?.error || error.message
+    };
+  }
+};
+
+/**
+ * Stage 8: Mark single notification as read
+ * PATCH /api/notifications/:notificationId/read
+ */
+export const markNotificationRead = async (notificationId) => {
+  try {
+    const response = await api.patch(`/notifications/${notificationId}/read`);
+    return {
+      success: true,
+      data: response.data.data,
+      message: response.data.message
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: error.response?.data?.error || error.message
+    };
+  }
+};
+
+/**
+ * Stage 8: Mark all notifications for a complaint as read
+ * PATCH /api/complaints/:complaintId/notifications/read-all
+ */
+export const markAllComplaintNotificationsRead = async (complaintId) => {
+  try {
+    const response = await api.patch(`/complaints/${complaintId}/notifications/read-all`);
+    return {
+      success: true,
+      updatedCount: response.data.updatedCount,
+      data: response.data.data
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: error.response?.data?.error || error.message
+    };
+  }
+};
+
+/**
+ * Stage 8: Fetch global unread notifications across all complaints
+ * GET /api/notifications/unread
+ */
+export const getGlobalUnreadNotifications = async (limit = 50, offset = 0) => {
+  try {
+    const response = await api.get('/notifications/unread', { params: { limit, offset } });
+    return {
+      success: true,
+      data: response.data.data,
+      count: response.data.count
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: error.response?.data?.error || error.message
+    };
+  }
+};
+
+/**
+ * Stage 8: Fetch paginated notifications feed
+ * GET /api/notifications
+ */
+export const getAllNotifications = async (limit = 50, offset = 0, isRead = null) => {
+  try {
+    const params = { limit, offset };
+    if (isRead !== null) params.isRead = isRead;
+    const response = await api.get('/notifications', { params });
+    return {
+      success: true,
+      data: response.data.data,
+      total: response.data.total
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: error.response?.data?.error || error.message
+    };
+  }
+};
+
+/**
+ * Stage 8: Mark all notifications across complaints as read
+ * PATCH /api/notifications/read-all
+ */
+export const markAllGlobalNotificationsRead = async () => {
+  try {
+    const response = await api.patch('/notifications/read-all');
+    return {
+      success: true,
+      updatedCount: response.data.updatedCount,
+      data: response.data.data
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: error.response?.data?.error || error.message
+    };
+  }
+};
+
 export default api;
+
 

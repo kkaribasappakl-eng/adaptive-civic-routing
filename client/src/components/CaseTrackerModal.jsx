@@ -18,16 +18,27 @@ import {
   Send,
   Cpu,
   RefreshCw,
-  Zap
+  Zap,
+  Bell,
+  CheckCheck,
+  Check
 } from 'lucide-react';
 import StatusTimeline from './StatusTimeline';
 import SlaStatusCard from './SlaStatusCard';
-import { getComplaintLifecycle, updateComplaintStatus } from '../services/api';
+import {
+  getComplaintLifecycle,
+  updateComplaintStatus,
+  getComplaintNotifications,
+  markNotificationRead,
+  markAllComplaintNotificationsRead
+} from '../services/api';
 import socket from '../services/socket';
 
 export default function CaseTrackerModal({ complaintId, onClose }) {
   const [data, setData] = useState(null);
+  const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [notificationsLoading, setNotificationsLoading] = useState(false);
   const [actionInProgress, setActionInProgress] = useState(false);
   const [actionReason, setActionReason] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
@@ -36,11 +47,19 @@ export default function CaseTrackerModal({ complaintId, onClose }) {
   const loadCase = async () => {
     setLoading(true);
     setErrorMessage('');
-    const res = await getComplaintLifecycle(complaintId);
-    if (res.success && res.data) {
-      setData(res.data);
+    const [lifecycleRes, notifsRes] = await Promise.all([
+      getComplaintLifecycle(complaintId),
+      getComplaintNotifications(complaintId)
+    ]);
+
+    if (lifecycleRes.success && lifecycleRes.data) {
+      setData(lifecycleRes.data);
     } else {
-      setErrorMessage(res.error || 'Failed to load case lifecycle');
+      setErrorMessage(lifecycleRes.error || 'Failed to load case lifecycle');
+    }
+
+    if (notifsRes.success && notifsRes.data) {
+      setNotifications(notifsRes.data);
     }
     setLoading(false);
   };
@@ -94,15 +113,56 @@ export default function CaseTrackerModal({ complaintId, onClose }) {
       }
     };
 
+    const handleNotificationCreated = (payload) => {
+      if (payload.complaintId === complaintId) {
+        setNotifications((prev) => {
+          if (prev.some((n) => n.id === payload.notificationId)) return prev;
+          const newN = {
+            id: payload.notificationId,
+            complaint_id: payload.complaintId,
+            complaint_code: payload.complaintCode,
+            notification_type: payload.notificationType,
+            title: payload.title,
+            message: payload.message,
+            is_read: false,
+            created_at: payload.createdAt
+          };
+          return [newN, ...prev];
+        });
+        setSuccessMessage(`🔔 New Notification: ${payload.title}`);
+        setTimeout(() => setSuccessMessage(''), 4000);
+      }
+    };
+
     socket.on('complaint:status_changed', handleStatusChanged);
     socket.on('sla:warning', handleSlaWarning);
     socket.on('sla:breached', handleSlaBreached);
+    socket.on('notification:created', handleNotificationCreated);
     return () => {
       socket.off('complaint:status_changed', handleStatusChanged);
       socket.off('sla:warning', handleSlaWarning);
       socket.off('sla:breached', handleSlaBreached);
+      socket.off('notification:created', handleNotificationCreated);
     };
   }, [complaintId]);
+
+  const handleMarkOneRead = async (notificationId) => {
+    const res = await markNotificationRead(notificationId);
+    if (res.success) {
+      setNotifications((prev) =>
+        prev.map((n) => (n.id === notificationId ? { ...n, is_read: true, read_at: new Date().toISOString() } : n))
+      );
+    }
+  };
+
+  const handleMarkAllComplaintRead = async () => {
+    setNotificationsLoading(true);
+    const res = await markAllComplaintNotificationsRead(complaintId);
+    if (res.success) {
+      setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
+    }
+    setNotificationsLoading(false);
+  };
 
   const handleStatusTransition = async (targetStatus, defaultReason) => {
     setActionInProgress(true);
@@ -369,6 +429,88 @@ export default function CaseTrackerModal({ complaintId, onClose }) {
                 currentStatus={status}
                 history={data?.status_history || []}
               />
+
+              {/* Stage 8: Citizen Notification Log */}
+              <div className="p-4 bg-slate-950 rounded-xl border border-slate-800 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Bell className="w-4 h-4 text-emerald-400" />
+                    <span className="text-xs font-semibold text-slate-300 uppercase tracking-wider">
+                      Citizen Notification History
+                    </span>
+                    <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700">
+                      {notifications.length} total
+                    </span>
+                    {notifications.some(n => !n.is_read) && (
+                      <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-rose-500/20 text-rose-300 border border-rose-500/30">
+                        {notifications.filter(n => !n.is_read).length} unread
+                      </span>
+                    )}
+                  </div>
+
+                  {notifications.some(n => !n.is_read) && (
+                    <button
+                      onClick={handleMarkAllComplaintRead}
+                      disabled={notificationsLoading}
+                      className="text-[10px] font-mono text-cyan-400 hover:text-cyan-300 flex items-center gap-1 transition"
+                    >
+                      <CheckCheck className="w-3 h-3" />
+                      Mark all read
+                    </button>
+                  )}
+                </div>
+
+                {notifications.length === 0 ? (
+                  <div className="p-3 bg-slate-900/40 rounded-lg border border-slate-800/80 text-[11px] text-slate-500 font-mono text-center">
+                    No citizen notifications recorded for this case yet.
+                  </div>
+                ) : (
+                  <div className="space-y-2 max-h-56 overflow-y-auto">
+                    {notifications.map((notif) => (
+                      <div
+                        key={notif.id}
+                        className={`p-2.5 rounded-lg border text-xs space-y-1 transition ${
+                          !notif.is_read
+                            ? 'bg-slate-900/80 border-cyan-800/50'
+                            : 'bg-slate-900/40 border-slate-800/60 opacity-85'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <span className="text-[10px] font-mono uppercase px-1.5 py-0.5 rounded bg-slate-800 text-cyan-300 border border-slate-700">
+                              {notif.notification_type}
+                            </span>
+                            <span className="font-semibold text-white">
+                              {notif.title}
+                            </span>
+                          </div>
+
+                          <div className="flex items-center gap-2 text-[10px] font-mono text-slate-500">
+                            <span>
+                              {notif.created_at ? new Date(notif.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
+                            </span>
+                            {!notif.is_read ? (
+                              <button
+                                onClick={() => handleMarkOneRead(notif.id)}
+                                className="text-slate-400 hover:text-emerald-400 transition"
+                                title="Mark read"
+                              >
+                                <Check className="w-3 h-3" />
+                              </button>
+                            ) : (
+                              <span className="text-slate-600 font-mono text-[9px]">READ</span>
+                            )}
+                          </div>
+                        </div>
+
+                        <p className="text-[11px] text-slate-300 leading-relaxed">
+                          {notif.message}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </>
           )}
         </div>

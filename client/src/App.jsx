@@ -6,6 +6,7 @@ import VersionManager from './components/VersionManager';
 import ComplaintForm from './components/ComplaintForm';
 import ComplaintFeed from './components/ComplaintFeed';
 import RoutingView from './components/RoutingView';
+import CaseTrackerModal from './components/CaseTrackerModal';
 import { checkApiHealth, getDatabaseSystemStatus } from './services/api';
 import socket from './services/socket';
 import { Compass, Database, Layers, ShieldCheck, FileText, Radio, CheckCircle2, Cpu } from 'lucide-react';
@@ -20,6 +21,7 @@ export default function App() {
   const [activeVersionCode, setActiveVersionCode] = useState('MYS_2026_V1');
   const [targetCoord, setTargetCoord] = useState(null);
   const [recentlySubmitted, setRecentlySubmitted] = useState(null);
+  const [trackingComplaintId, setTrackingComplaintId] = useState(null);
 
   const fetchSystemStatus = async () => {
     setLoading(true);
@@ -73,7 +75,16 @@ export default function App() {
         apiHealthy={apiHealth?.success}
         activeTab={activeTab}
         onTabChange={setActiveTab}
+        onSelectComplaint={(id) => setTrackingComplaintId(id)}
       />
+
+      {/* Case Tracker Modal from global notification click */}
+      {trackingComplaintId && (
+        <CaseTrackerModal
+          complaintId={trackingComplaintId}
+          onClose={() => setTrackingComplaintId(null)}
+        />
+      )}
 
       {/* Main Content Area */}
       <main className="flex-1 max-w-7xl w-full mx-auto p-6 space-y-6">
@@ -170,7 +181,7 @@ export default function App() {
 
       {/* Civic Footer */}
       <footer className="border-t border-slate-900 bg-slate-950/80 px-6 py-4 text-center text-xs text-slate-500">
-        Adaptive Civic Routing Intelligence System • HackMysuru Sub-Problem: Routing • Stage 7: SLA Tracking & Escalation
+        Adaptive Civic Routing Intelligence System • HackMysuru Sub-Problem: Routing • Stage 8: Citizen Notifications & Real-Time Updates
       </footer>
     </div>
   );

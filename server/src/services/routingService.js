@@ -247,6 +247,43 @@ const routeComplaint = async (complaintIdOrCode) => {
     console.warn('[Socket.IO] Routing broadcast warning:', socketErr.message);
   }
 
+  // Stage 8: Persist citizen notification in PostgreSQL
+  try {
+    const { createNotification } = require('./notificationService');
+    if (routingStatus === 'ROUTED') {
+      const authName = fullDecision?.authority?.name || 'Assigned Civic Authority';
+      const deptName = fullDecision?.department?.name || 'Department';
+      await createNotification({
+        complaintId: complaint.id,
+        notificationType: 'ROUTING_COMPLETED',
+        title: 'Routing Completed',
+        message: `Your complaint has been routed to ${authName} (${deptName}).`,
+        metadata: {
+          routingDecisionId: savedDecision.id,
+          authority: fullDecision?.authority?.name || null,
+          department: fullDecision?.department?.name || null,
+          jurisdiction: fullDecision?.jurisdiction?.name || null,
+          jurisdictionVersion: activeVersion.version_code
+        },
+        idempotencyKey: `ROUTING_COMPLETED:${complaint.id}`
+      });
+    } else {
+      await createNotification({
+        complaintId: complaint.id,
+        notificationType: 'HUMAN_REVIEW_REQUIRED',
+        title: 'Human Review Required',
+        message: 'Your complaint requires review by an officer to determine jurisdiction and department assignment.',
+        metadata: {
+          routingDecisionId: savedDecision.id,
+          reason
+        },
+        idempotencyKey: `HUMAN_REVIEW_REQUIRED:${complaint.id}`
+      });
+    }
+  } catch (notifErr) {
+    console.warn('[Stage 8 Notification] Routing notification warning:', notifErr.message);
+  }
+
   return {
     alreadyRouted: false,
     decision: fullDecision
