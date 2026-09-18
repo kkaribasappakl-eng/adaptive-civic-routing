@@ -1,0 +1,3 @@
+-- Seeds: 001_initial_seed.sql
+-- Baseline seed data for future stages (MCC, MUDA, Gram Panchayats)
+-- In Stage 1, this file serves as the structure template.

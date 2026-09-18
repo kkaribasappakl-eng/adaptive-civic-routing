@@ -1,0 +1,22 @@
+{
+  "name": "adaptive-civic-routing",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Adaptive Civic Routing Intelligence System - HackMysuru Routing Sub-Problem",
+  "scripts": {
+    "dev:server": "npm --prefix server run dev",
+    "dev:client": "npm --prefix client run dev",
+    "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
+    "install:all": "npm install && npm --prefix server install && npm --prefix client install"
+  },
+  "keywords": [
+    "hackmysuru",
+    "routing",
+    "civic-intelligence",
+    "postgis",
+    "leaflet",
+    "socketio"
+  ],
+  "author": "",
+  "license": "ISC"
+}
