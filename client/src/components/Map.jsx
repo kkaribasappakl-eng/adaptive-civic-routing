@@ -86,13 +86,14 @@ export default function Map() {
       </div>
 
       {/* Map Viewport Container */}
-      <div className="flex-1 w-full min-h-[500px] relative">
+      <div className="flex-1 w-full min-h-[520px] relative">
         <MapContainer
           center={MYSURU_CENTER}
           zoom={DEFAULT_ZOOM}
           scrollWheelZoom={true}
           className="w-full h-full"
           id="civic-map-container"
+          style={{ height: '520px', width: '100%', minHeight: '520px' }}
         >
           <TileLayer
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
