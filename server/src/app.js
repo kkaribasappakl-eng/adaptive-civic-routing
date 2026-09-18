@@ -8,6 +8,7 @@ const systemRoutes = require('./routes/systemRoutes');
 const gisRoutes = require('./routes/gisRoutes');
 const jurisdictionRoutes = require('./routes/jurisdictionRoutes');
 const complaintRoutes = require('./routes/complaintRoutes');
+const routingRoutes = require('./routes/routingRoutes');
 const { notFoundHandler, errorHandler } = require('./middleware/errorMiddleware');
 
 const app = express();
@@ -44,20 +45,22 @@ app.use('/api/system', systemRoutes);
 app.use('/api/gis', gisRoutes);
 app.use('/api/jurisdictions', jurisdictionRoutes);
 app.use('/api/complaints', complaintRoutes);
+app.use('/api/routing', routingRoutes);
 
 // Root informational endpoint
 app.get('/', (req, res) => {
   res.status(200).json({
     project: 'Adaptive Civic Routing Intelligence System',
     subProblem: 'Routing',
-    stage: 4,
+    stage: 5,
     status: 'online',
     endpoints: {
       health: '/api/health',
       database: '/api/system/database',
       gisTest: '/api/gis/test?lat=12.2958&lng=76.6394',
       jurisdictions: '/api/jurisdictions/versions',
-      complaints: '/api/complaints'
+      complaints: '/api/complaints',
+      routing: '/api/routing/decisions'
     }
   });
 });

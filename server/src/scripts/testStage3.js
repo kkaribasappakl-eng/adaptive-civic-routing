@@ -59,7 +59,7 @@ async function runStage3Verification() {
   try {
     // 1. Health check
     const health = await request('/api/health');
-    assert(health.status === 200 && health.body.success === true && health.body.stage === 3, '1. System Health Check', `Stage: ${health.body.stage}, Message: ${health.body.message}`);
+    assert(health.status === 200 && health.body.success === true && health.body.stage >= 3, '1. System Health Check', `Stage: ${health.body.stage}, Message: ${health.body.message}`);
 
     // 2. Database Status
     const db = await request('/api/system/database');
@@ -67,15 +67,11 @@ async function runStage3Verification() {
 
     // 3. Reset Demo V1 & V2 state to guarantee clean test baseline
     console.log('\n--- Resetting to initial state (V1 ACTIVE, V2 DRAFT) ---');
+    const { pool } = require('../config/db');
+    await pool.query("UPDATE jurisdiction_versions SET status = 'DRAFT' WHERE version_code = 'MYS_2026_V2'");
+    await pool.query("UPDATE jurisdiction_versions SET status = 'ACTIVE' WHERE version_code = 'MYS_2026_V1'");
     const v2Setup = await request('/api/jurisdictions/demo-v2-setup', 'POST');
     assert(v2Setup.status === 200 && v2Setup.body.success, '3. Setup Demo V2 scenario (MYS_2026_V2 as DRAFT)', v2Setup.body.data?.message);
-
-    // Ensure V1 is active initially if it was retired earlier
-    const { pool } = require('../config/db');
-    await pool.query("UPDATE jurisdiction_versions SET status = 'RETIRED' WHERE version_code = 'MYS_2026_V2'");
-    await pool.query("UPDATE jurisdiction_versions SET status = 'ACTIVE' WHERE version_code = 'MYS_2026_V1'");
-    // Re-run setup so V2 is DRAFT and V1 is ACTIVE
-    await request('/api/jurisdictions/demo-v2-setup', 'POST');
 
     // 4. List versions
     const versionsRes = await request('/api/jurisdictions/versions');

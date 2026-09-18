@@ -5,12 +5,13 @@ import SystemStatus from './components/SystemStatus';
 import VersionManager from './components/VersionManager';
 import ComplaintForm from './components/ComplaintForm';
 import ComplaintFeed from './components/ComplaintFeed';
+import RoutingView from './components/RoutingView';
 import { checkApiHealth, getDatabaseSystemStatus } from './services/api';
 import socket from './services/socket';
-import { Compass, Database, Layers, ShieldCheck, FileText, Radio, CheckCircle2 } from 'lucide-react';
+import { Compass, Database, Layers, ShieldCheck, FileText, Radio, CheckCircle2, Cpu } from 'lucide-react';
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState('complaints'); // 'complaints' | 'jurisdictions'
+  const [activeTab, setActiveTab] = useState('complaints'); // 'complaints' | 'routing' | 'jurisdictions'
   const [apiHealth, setApiHealth] = useState(null);
   const [dbStatus, setDbStatus] = useState(null);
   const [socketConnected, setSocketConnected] = useState(socket.connected);
@@ -93,33 +94,38 @@ export default function App() {
               <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-xl">
                 <h3 className="text-sm font-semibold text-white flex items-center gap-2 mb-3">
                   <ShieldCheck className="w-4 h-4 text-emerald-400" />
-                  Stage 4 Architecture Guarantees
+                  Stage 5 Architecture & Routing Guarantees
                 </h3>
                 <ul className="space-y-2 text-xs text-slate-300">
                   <li className="flex items-start gap-2">
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 mt-1.5 shrink-0" />
-                    <span><strong>PostgreSQL Persistence:</strong> Complaints stored with monotonic codes (`HM-CIV-2026-XXXXXX`).</span>
+                    <span><strong>100% Deterministic:</strong> Routing decided purely by PostGIS spatial containment + DB category maps.</span>
                   </li>
                   <li className="flex items-start gap-2">
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 mt-1.5 shrink-0" />
-                    <span><strong>PostGIS Point Geometry:</strong> Stored as `geometry(Point, 4326)` with spatial GiST indexing.</span>
+                    <span><strong>No AI in Routing:</strong> AI assists classification only; routing logic is fully deterministic.</span>
                   </li>
                   <li className="flex items-start gap-2">
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 mt-1.5 shrink-0" />
-                    <span><strong>Assistive AI Only:</strong> AI suggests category; never decides jurisdiction, authority, or department.</span>
+                    <span><strong>Historical Immutability:</strong> Decisions permanently preserve the active version at resolution time.</span>
                   </li>
                   <li className="flex items-start gap-2">
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 mt-1.5 shrink-0" />
-                    <span><strong>Non-Blocking Duplicate Warning:</strong> Proximity search flags nearby reports without rejecting submission.</span>
+                    <span><strong>Graceful Fallbacks:</strong> Uncovered points or unmapped categories route to Human Review without inventing authority.</span>
                   </li>
                   <li className="flex items-start gap-2">
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 mt-1.5 shrink-0" />
-                    <span><strong>Stage 5 Boundary Lock:</strong> No authority routing in Stage 4; complaints are prepared for Stage 5 engine.</span>
+                    <span><strong>Idempotency Enforced:</strong> Re-routing returns existing decision without creating duplicate records.</span>
                   </li>
                 </ul>
               </div>
             </div>
           </div>
+        ) : activeTab === 'routing' ? (
+          /* =================================================== */
+          /* STAGE 5 — DETERMINISTIC CIVIC ROUTING ENGINE        */
+          /* =================================================== */
+          <RoutingView />
         ) : (
           /* =================================================== */
           /* STAGES 2 & 3 — GIS FOUNDATION & JURISDICTIONS       */
@@ -164,7 +170,7 @@ export default function App() {
 
       {/* Civic Footer */}
       <footer className="border-t border-slate-900 bg-slate-950/80 px-6 py-4 text-center text-xs text-slate-500">
-        Adaptive Civic Routing Intelligence System • HackMysuru Sub-Problem: Routing • Stage 4: Citizen Complaint Intake & AI-Assisted Issue Classification
+        Adaptive Civic Routing Intelligence System • HackMysuru Sub-Problem: Routing • Stage 5: Deterministic Civic Routing Engine
       </footer>
     </div>
   );

@@ -296,4 +296,66 @@ export const checkDuplicateReports = async (lat, lng, category) => {
   }
 };
 
+/**
+ * Stage 5: Execute Deterministic Routing for a complaint
+ * POST /api/complaints/:complaintId/route
+ */
+export const routeComplaint = async (complaintId) => {
+  try {
+    const response = await api.post(`/complaints/${complaintId}/route`);
+    return {
+      success: true,
+      data: response.data.data,
+      alreadyRouted: response.data.alreadyRouted,
+      message: response.data.message
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: error.response?.data?.error || error.message
+    };
+  }
+};
+
+/**
+ * Stage 5: Fetch Routing Decision for a specific complaint
+ * GET /api/complaints/:complaintId/routing
+ */
+export const getComplaintRouting = async (complaintId) => {
+  try {
+    const response = await api.get(`/complaints/${complaintId}/routing`);
+    return {
+      success: true,
+      data: response.data.data
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: error.response?.data?.error || error.message
+    };
+  }
+};
+
+/**
+ * Stage 5: Fetch list of recent routing decisions
+ * GET /api/routing/decisions
+ */
+export const getRoutingDecisions = async (limit = 20, offset = 0) => {
+  try {
+    const response = await api.get('/routing/decisions', {
+      params: { limit, offset }
+    });
+    return {
+      success: true,
+      data: response.data.data,
+      total: response.data.total
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: error.response?.data?.error || error.message
+    };
+  }
+};
+
 export default api;

@@ -14,11 +14,11 @@ export default function Header({ socketConnected, apiHealthy, activeTab = 'compl
             <h1 className="text-xl font-bold tracking-tight text-white flex items-center gap-2">
               Adaptive Civic Routing Intelligence System
               <span className="text-xs uppercase font-mono px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                Stage 4
+                Stage 5
               </span>
             </h1>
             <p className="text-xs text-slate-400 font-medium">
-              HackMysuru • Adaptive Civic Routing
+              HackMysuru • Deterministic Civic Routing Engine
             </p>
           </div>
         </div>
@@ -37,6 +37,16 @@ export default function Header({ socketConnected, apiHealthy, activeTab = 'compl
               Citizen Portal (Stage 4)
             </button>
             <button
+              onClick={() => onTabChange && onTabChange('routing')}
+              className={`px-3 py-1.5 rounded-md font-semibold transition ${
+                activeTab === 'routing'
+                  ? 'bg-cyan-600/30 text-cyan-300 border border-cyan-500/40 shadow-sm'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              Routing Engine (Stage 5)
+            </button>
+            <button
               onClick={() => onTabChange && onTabChange('jurisdictions')}
               className={`px-3 py-1.5 rounded-md font-semibold transition ${
                 activeTab === 'jurisdictions'
@@ -46,9 +56,6 @@ export default function Header({ socketConnected, apiHealthy, activeTab = 'compl
             >
               Jurisdictions & GIS (Stage 2/3)
             </button>
-            <span className="px-3 py-1.5 text-slate-600 cursor-not-allowed text-[11px]" title="Available in Stage 5+">
-              Routing Engine (Stage 5)
-            </span>
           </nav>
 
           {/* Quick status pills */}

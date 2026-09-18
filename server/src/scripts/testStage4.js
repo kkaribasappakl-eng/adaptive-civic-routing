@@ -128,9 +128,9 @@ async function runStage4Tests() {
   });
 
   try {
-    // 1. Health and Stage 4 Check
+    // 1. Health check & Stage indicator
     const health = await sendJsonRequest('/api/health');
-    assert(health.status === 200 && health.body.stage === 4, '1. Backend Health & Stage 4 Indicator', `Stage: ${health.body.stage}`);
+    assert(health.status === 200 && health.body.stage >= 4, '1. Backend Health & Stage 4+ Indicator', `Stage: ${health.body.stage}`);
 
     // 2. Database Schema & Spatial Index Check
     const schemaCheck = await pool.query(`

@@ -24,4 +24,10 @@ router.get('/', listComplaints);
 // Single complaint by ID or code
 router.get('/:id', getComplaint);
 
+// Route complaint endpoint
+router.post('/:complaintId/route', require('../controllers/routingController').routeComplaintHandler);
+
+// Get complaint routing decision
+router.get('/:complaintId/routing', require('../controllers/routingController').getComplaintRoutingHandler);
+
 module.exports = router;

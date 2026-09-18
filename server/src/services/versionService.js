@@ -365,30 +365,23 @@ const setupDemoV2Scenario = async () => {
   try {
     await client.query('BEGIN');
 
-    // 1. Check if V2 exists, delete existing V2 if in DRAFT so it can be cleanly re-prepared
+    // 1. Check if V2 exists; reset to DRAFT or insert if new
+    const v2Id = 'c0000000-0000-0000-0000-000000000002';
     const existingV2 = await client.query("SELECT id, status FROM jurisdiction_versions WHERE version_code = 'MYS_2026_V2'");
     if (existingV2.rows.length > 0) {
-      if (existingV2.rows[0].status === 'ACTIVE') {
-        // If already active, return as already setup and active
-        await client.query('COMMIT');
-        return {
-          versionCode: 'MYS_2026_V2',
-          status: 'ACTIVE',
-          message: 'MYS_2026_V2 is already active.'
-        };
-      }
-      // If DRAFT or RETIRED, remove to re-create clean DRAFT
+      await client.query(`
+        UPDATE jurisdiction_versions 
+        SET status = 'DRAFT', effective_from = NULL, effective_to = NULL, activated_at = NULL, retired_at = NULL 
+        WHERE id = $1
+      `, [existingV2.rows[0].id]);
       await client.query("DELETE FROM jurisdictions WHERE jurisdiction_version_id = $1", [existingV2.rows[0].id]);
-      await client.query("DELETE FROM jurisdiction_versions WHERE id = $1", [existingV2.rows[0].id]);
+    } else {
+      await client.query(`
+        INSERT INTO jurisdiction_versions (
+          id, version_code, version_number, status, source, notes, created_at
+        ) VALUES ($1, 'MYS_2026_V2', 2, 'DRAFT', 'HackMysuru Demo Delimitation Proposal', 'Demo Boundary Change Simulation: Transfer of north-central sector to MUDA jurisdiction', CURRENT_TIMESTAMP);
+      `, [v2Id]);
     }
-
-    // 2. Insert MYS_2026_V2 as DRAFT
-    const v2Id = 'c0000000-0000-0000-0000-000000000002';
-    await client.query(`
-      INSERT INTO jurisdiction_versions (
-        id, version_code, version_number, status, source, notes, created_at
-      ) VALUES ($1, 'MYS_2026_V2', 2, 'DRAFT', 'HackMysuru Demo Delimitation Proposal', 'Demo Boundary Change Simulation: Transfer of north-central sector to MUDA jurisdiction', CURRENT_TIMESTAMP);
-    `, [v2Id]);
 
     // 3. Insert V2 Jurisdictions
     // Polygon A: Revised MCC Central Zone 1 (MCC Demo Authority: a0000000-0000-0000-0000-000000000001)

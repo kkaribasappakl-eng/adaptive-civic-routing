@@ -8,16 +8,26 @@ import {
   Radio,
   FileCheck,
   Sparkles,
-  Layers
+  Layers,
+  Send,
+  Zap,
+  CheckCircle2,
+  AlertTriangle,
+  Info
 } from 'lucide-react';
-import { fetchRecentComplaints } from '../services/api';
+import { fetchRecentComplaints, routeComplaint, getComplaintRouting } from '../services/api';
 import socket from '../services/socket';
+import RoutingDecisionModal from './RoutingDecisionModal';
 
 export default function ComplaintFeed({ newComplaint }) {
   const [complaints, setComplaints] = useState([]);
   const [loading, setLoading] = useState(false);
   const [filterCategory, setFilterCategory] = useState('');
   const [newestId, setNewestId] = useState(null);
+  const [routingInProgress, setRoutingInProgress] = useState({});
+  const [selectedDecision, setSelectedDecision] = useState(null);
+  const [selectedComplaint, setSelectedComplaint] = useState(null);
+  const [loadingDecision, setLoadingDecision] = useState(false);
 
   const loadComplaints = async () => {
     setLoading(true);
@@ -44,7 +54,7 @@ export default function ComplaintFeed({ newComplaint }) {
     }
   }, [newComplaint]);
 
-  // Real-time Socket.IO listener for live civic broadcasts
+  // Real-time Socket.IO listeners for live civic broadcasts
   useEffect(() => {
     const handleComplaintCreated = (data) => {
       setComplaints((prev) => {
@@ -67,11 +77,64 @@ export default function ComplaintFeed({ newComplaint }) {
       setTimeout(() => setNewestId(null), 3000);
     };
 
+    const handleRoutingCompleted = (data) => {
+      setComplaints((prev) =>
+        prev.map((c) =>
+          c.id === data.complaintId || c.complaint_code === data.complaintCode
+            ? { ...c, status: 'ROUTED', authority_name: data.authorityName, department_name: data.departmentName }
+            : c
+        )
+      );
+    };
+
+    const handleRoutingReview = (data) => {
+      setComplaints((prev) =>
+        prev.map((c) =>
+          c.id === data.complaintId || c.complaint_code === data.complaintCode
+            ? { ...c, status: 'HUMAN_REVIEW' }
+            : c
+        )
+      );
+    };
+
     socket.on('complaint:created', handleComplaintCreated);
+    socket.on('routing:completed', handleRoutingCompleted);
+    socket.on('routing:review_required', handleRoutingReview);
+
     return () => {
       socket.off('complaint:created', handleComplaintCreated);
+      socket.off('routing:completed', handleRoutingCompleted);
+      socket.off('routing:review_required', handleRoutingReview);
     };
   }, []);
+
+  const handleRouteClick = async (complaint) => {
+    setRoutingInProgress(prev => ({ ...prev, [complaint.id]: true }));
+    const res = await routeComplaint(complaint.id);
+    setRoutingInProgress(prev => ({ ...prev, [complaint.id]: false }));
+
+    if (res.success && res.data) {
+      setComplaints(prev =>
+        prev.map(c => c.id === complaint.id ? { ...c, status: res.data.routing_status } : c)
+      );
+      setSelectedComplaint(complaint);
+      setSelectedDecision(res.data);
+    } else {
+      alert(`Routing error: ${res.error}`);
+    }
+  };
+
+  const handleViewDecision = async (complaint) => {
+    setSelectedComplaint(complaint);
+    setLoadingDecision(true);
+    const res = await getComplaintRouting(complaint.id);
+    setLoadingDecision(false);
+    if (res.success && res.data) {
+      setSelectedDecision(res.data);
+    } else {
+      alert(`Could not retrieve routing decision: ${res.error || 'None exists'}`);
+    }
+  };
 
   return (
     <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-2xl space-y-4">
@@ -83,10 +146,10 @@ export default function ComplaintFeed({ newComplaint }) {
           </div>
           <div>
             <h3 className="text-sm font-bold text-white flex items-center gap-1.5">
-              Live Intake Feed (PostgreSQL Stream)
+              Live Intake & Routing Feed
             </h3>
             <span className="text-[10px] text-slate-400 font-mono">
-              Real-time Socket.IO broadcasts
+              Stage 5 Deterministic Engine Active
             </span>
           </div>
         </div>
@@ -114,6 +177,11 @@ export default function ComplaintFeed({ newComplaint }) {
         ) : (
           complaints.map((item) => {
             const isNew = item.id === newestId;
+            const isRouted = item.status === 'ROUTED';
+            const isReview = item.status === 'HUMAN_REVIEW';
+            const isReceived = item.status === 'RECEIVED';
+            const isBusy = !!routingInProgress[item.id];
+
             return (
               <div
                 key={item.id || item.complaint_code}
@@ -132,7 +200,13 @@ export default function ComplaintFeed({ newComplaint }) {
                     <span className="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase bg-slate-800 text-slate-300 border border-slate-700">
                       {item.category}
                     </span>
-                    <span className="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase bg-emerald-950 text-emerald-400 border border-emerald-500/30">
+                    <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold uppercase border ${
+                      isRouted
+                        ? 'bg-emerald-950 text-emerald-400 border-emerald-500/30'
+                        : isReview
+                        ? 'bg-amber-950 text-amber-400 border-amber-500/30'
+                        : 'bg-slate-800 text-slate-300 border-slate-700'
+                    }`}>
                       {item.status}
                     </span>
                   </div>
@@ -141,6 +215,43 @@ export default function ComplaintFeed({ newComplaint }) {
                 <p className="text-xs text-slate-200 line-clamp-2 mb-2 leading-relaxed">
                   {item.description}
                 </p>
+
+                {/* Stage 5 Deterministic Routing Actions */}
+                <div className="flex items-center justify-between gap-2 my-2 pt-2 border-t border-slate-800/40">
+                  <div className="text-[10px] text-slate-400 font-mono">
+                    {isRouted ? (
+                      <span className="text-emerald-400 flex items-center gap-1">
+                        <CheckCircle2 className="w-3 h-3" /> PostGIS Routed
+                      </span>
+                    ) : isReview ? (
+                      <span className="text-amber-400 flex items-center gap-1">
+                        <AlertTriangle className="w-3 h-3" /> Review Required
+                      </span>
+                    ) : (
+                      <span className="text-slate-500">Awaiting Spatial Route</span>
+                    )}
+                  </div>
+
+                  {isReceived ? (
+                    <button
+                      onClick={() => handleRouteClick(item)}
+                      disabled={isBusy}
+                      className="px-2.5 py-1 bg-civic-600 hover:bg-civic-500 disabled:opacity-50 text-white rounded text-[10px] font-semibold flex items-center gap-1 transition shadow-sm"
+                    >
+                      <Zap className={`w-3 h-3 ${isBusy ? 'animate-spin' : 'text-amber-300'}`} />
+                      {isBusy ? 'Routing...' : 'Route Complaint'}
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => handleViewDecision(item)}
+                      disabled={loadingDecision}
+                      className="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded text-[10px] font-mono flex items-center gap-1 transition border border-slate-700"
+                    >
+                      <Info className="w-3 h-3 text-civic-400" />
+                      View Decision
+                    </button>
+                  )}
+                </div>
 
                 <div className="flex flex-wrap items-center justify-between text-[10px] text-slate-400 font-mono pt-1.5 border-t border-slate-800/60 gap-1">
                   <span className="flex items-center gap-1">
@@ -165,6 +276,18 @@ export default function ComplaintFeed({ newComplaint }) {
           })
         )}
       </div>
+
+      {/* Routing Decision Modal */}
+      {selectedDecision && (
+        <RoutingDecisionModal
+          decision={selectedDecision}
+          complaint={selectedComplaint}
+          onClose={() => {
+            setSelectedDecision(null);
+            setSelectedComplaint(null);
+          }}
+        />
+      )}
     </div>
   );
 }
