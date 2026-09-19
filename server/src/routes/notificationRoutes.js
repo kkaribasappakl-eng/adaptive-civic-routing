@@ -6,6 +6,10 @@ const {
   markNotificationReadHandler,
   markAllGlobalNotificationsReadHandler
 } = require('../controllers/notificationController');
+const { requireAuth, requireRole } = require('../middleware/authMiddleware');
+
+// Global operational notifications require OPERATOR or ADMIN role
+router.use(requireAuth, requireRole('OPERATOR', 'ADMIN'));
 
 // GET /api/notifications/unread (aggregate unread notifications)
 router.get('/unread', getGlobalUnreadNotificationsHandler);

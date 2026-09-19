@@ -9,11 +9,14 @@ import RoutingView from './components/RoutingView';
 import ReviewWorkspace from './components/ReviewWorkspace';
 import AnalyticsDashboard from './components/AnalyticsDashboard';
 import CaseTrackerModal from './components/CaseTrackerModal';
+import AuthModal from './components/AuthModal';
+import AccessGuard from './components/AccessGuard';
+import { AuthProvider, useAuth } from './context/AuthContext';
 import { checkApiHealth, getDatabaseSystemStatus } from './services/api';
 import socket from './services/socket';
 import { Compass, Database, Layers, ShieldCheck, FileText, Radio, CheckCircle2, Cpu } from 'lucide-react';
 
-export default function App() {
+function AppContent() {
   const [activeTab, setActiveTab] = useState('complaints'); // 'complaints' | 'routing' | 'review' | 'jurisdictions' | 'analytics'
   const [apiHealth, setApiHealth] = useState(null);
   const [dbStatus, setDbStatus] = useState(null);
@@ -24,6 +27,8 @@ export default function App() {
   const [targetCoord, setTargetCoord] = useState(null);
   const [recentlySubmitted, setRecentlySubmitted] = useState(null);
   const [trackingComplaintId, setTrackingComplaintId] = useState(null);
+
+  const { isOperator, isAdmin } = useAuth();
 
   const fetchSystemStatus = async () => {
     setLoading(true);
@@ -88,6 +93,9 @@ export default function App() {
         onSelectComplaint={(id) => setTrackingComplaintId(id)}
       />
 
+      {/* Global Auth Modal */}
+      <AuthModal />
+
       {/* Case Tracker Modal from global notification click */}
       {trackingComplaintId && (
         <CaseTrackerModal
@@ -115,7 +123,7 @@ export default function App() {
               <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-xl">
                 <h3 className="text-sm font-semibold text-white flex items-center gap-2 mb-3">
                   <ShieldCheck className="w-4 h-4 text-emerald-400" />
-                  Stage 5 Architecture & Routing Guarantees
+                  Stage 12 RBAC & Routing Guarantees
                 </h3>
                 <ul className="space-y-2 text-xs text-slate-300">
                   <li className="flex items-start gap-2">
@@ -124,7 +132,11 @@ export default function App() {
                   </li>
                   <li className="flex items-start gap-2">
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 mt-1.5 shrink-0" />
-                    <span><strong>No AI in Routing:</strong> AI assists classification only; routing logic is fully deterministic.</span>
+                    <span><strong>Public Intake & Tracking:</strong> Anonymous/Citizen access to filing & tracking without credential barriers.</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 mt-1.5 shrink-0" />
+                    <span><strong>Role-Based Access Control:</strong> Human review, jurisdiction mutation, and operational analytics strictly guarded.</span>
                   </li>
                   <li className="flex items-start gap-2">
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 mt-1.5 shrink-0" />
@@ -132,11 +144,7 @@ export default function App() {
                   </li>
                   <li className="flex items-start gap-2">
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 mt-1.5 shrink-0" />
-                    <span><strong>Graceful Fallbacks:</strong> Uncovered points or unmapped categories route to Human Review without inventing authority.</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 mt-1.5 shrink-0" />
-                    <span><strong>Idempotency Enforced:</strong> Re-routing returns existing decision without creating duplicate records.</span>
+                    <span><strong>Scoped Real-Time Gateway:</strong> Review events stream exclusively to authorized operator sockets.</span>
                   </li>
                 </ul>
               </div>
@@ -149,61 +157,93 @@ export default function App() {
           <RoutingView />
         ) : activeTab === 'review' ? (
           /* =================================================== */
-          /* STAGE 9 — OPERATOR REVIEW & HUMAN-IN-THE-LOOP       */
+          /* STAGE 9 & 12 — OPERATOR REVIEW & HUMAN-IN-THE-LOOP  */
           /* =================================================== */
-          <ReviewWorkspace onSelectComplaint={(id) => setTrackingComplaintId(id)} />
+          isOperator ? (
+            <ReviewWorkspace onSelectComplaint={(id) => setTrackingComplaintId(id)} />
+          ) : (
+            <AccessGuard 
+              requiredRole="OPERATOR" 
+              tabTitle="Operator Human Review Queue" 
+              onBackToPublic={() => setActiveTab('complaints')} 
+            />
+          )
         ) : activeTab === 'analytics' ? (
           /* =================================================== */
-          /* STAGE 11 — OPERATIONAL ANALYTICS & ROUTING DASHBOARD*/
+          /* STAGE 11 & 12 — OPERATIONAL ANALYTICS DASHBOARD     */
           /* =================================================== */
-          <AnalyticsDashboard />
+          isOperator ? (
+            <AnalyticsDashboard />
+          ) : (
+            <AccessGuard 
+              requiredRole="OPERATOR" 
+              tabTitle="Operational Analytics & Routing Intelligence" 
+              onBackToPublic={() => setActiveTab('complaints')} 
+            />
+          )
         ) : (
           /* =================================================== */
-          /* STAGES 2, 3 & 10 — GIS FOUNDATION & JURISDICTIONS   */
+          /* STAGES 2, 3, 10 & 12 — JURISDICTION MANAGEMENT      */
           /* =================================================== */
-          <div className="space-y-6">
-            <SystemStatus
-              dbStatus={dbStatus}
-              socketConnected={socketConnected}
-              socketDetails={socketDetails}
-              loading={loading}
-              onRefresh={fetchSystemStatus}
-            />
+          isOperator ? (
+            <div className="space-y-6">
+              <SystemStatus
+                dbStatus={dbStatus}
+                socketConnected={socketConnected}
+                socketDetails={socketDetails}
+                loading={loading}
+                onRefresh={fetchSystemStatus}
+              />
 
-            <VersionManager
-              onVersionChange={(verCode) => setActiveVersionCode(verCode)}
-              onCoordinateSelect={(lat, lng) => setTargetCoord({ lat, lng })}
-            />
+              <VersionManager
+                onVersionChange={(verCode) => setActiveVersionCode(verCode)}
+                onCoordinateSelect={(lat, lng) => setTargetCoord({ lat, lng })}
+              />
 
-            <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-              <div className="lg:col-span-3 min-h-[550px]">
-                <Map activeVersionCode={activeVersionCode} targetCoord={targetCoord} />
-              </div>
+              <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+                <div className="lg:col-span-3 min-h-[550px]">
+                  <Map activeVersionCode={activeVersionCode} targetCoord={targetCoord} />
+                </div>
 
-              <div className="lg:col-span-1 space-y-4">
-                <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-xl">
-                  <h3 className="text-sm font-semibold text-white flex items-center gap-2 mb-3">
-                    <Database className="w-4 h-4 text-civic-400" />
-                    GIS Engine Core
-                  </h3>
-                  <ul className="space-y-2 text-xs text-slate-300">
-                    <li>• PostGIS MultiPolygon SRID 4326</li>
-                    <li>• GiST Spatial Indexing</li>
-                    <li>• Single Active Version Rule</li>
-                    <li>• Historical Immutability</li>
-                  </ul>
+                <div className="lg:col-span-1 space-y-4">
+                  <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-xl">
+                    <h3 className="text-sm font-semibold text-white flex items-center gap-2 mb-3">
+                      <Database className="w-4 h-4 text-civic-400" />
+                      GIS Engine & RBAC Core
+                    </h3>
+                    <ul className="space-y-2 text-xs text-slate-300">
+                      <li>• PostGIS MultiPolygon SRID 4326</li>
+                      <li>• GiST Spatial Indexing</li>
+                      <li>• Single Active Version Rule</li>
+                      <li>• Admin-Only Version Activation</li>
+                      <li>• Historical Provenance Immutability</li>
+                    </ul>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
+          ) : (
+            <AccessGuard 
+              requiredRole="OPERATOR" 
+              tabTitle="Jurisdiction Boundary Manager" 
+              onBackToPublic={() => setActiveTab('complaints')} 
+            />
+          )
         )}
       </main>
 
       {/* Civic Footer */}
       <footer className="border-t border-slate-900 bg-slate-950/80 px-6 py-4 text-center text-xs text-slate-500">
-        Adaptive Civic Routing Intelligence System • HackMysuru Sub-Problem: Routing • Stage 11: Operational Analytics & Routing Intelligence Dashboard
+        Adaptive Civic Routing Intelligence System • HackMysuru Sub-Problem: Routing • Stage 12: Authentication, Authorization & Role-Based Access Control
       </footer>
     </div>
   );
 }
 
+export default function App() {
+  return (
+    <AuthProvider>
+      <AppContent />
+    </AuthProvider>
+  );
+}

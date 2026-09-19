@@ -9,6 +9,10 @@ const {
   getReviewActionsHandler,
   getAuthoritiesHandler
 } = require('../controllers/reviewController');
+const { requireAuth, requireRole } = require('../middleware/authMiddleware');
+
+// All review queue operations require OPERATOR or ADMIN role
+router.use(requireAuth, requireRole('OPERATOR', 'ADMIN'));
 
 /**
  * @route   GET /api/reviews

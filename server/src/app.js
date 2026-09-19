@@ -2,8 +2,10 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
+const cookieParser = require('cookie-parser');
 const path = require('path');
 const healthRoutes = require('./routes/healthRoutes');
+const authRoutes = require('./routes/authRoutes');
 const systemRoutes = require('./routes/systemRoutes');
 const gisRoutes = require('./routes/gisRoutes');
 const jurisdictionRoutes = require('./routes/jurisdictionRoutes');
@@ -36,6 +38,9 @@ if (process.env.NODE_ENV !== 'test') {
   app.use(morgan('dev'));
 }
 
+// Cookie parser for HttpOnly JWT tokens
+app.use(cookieParser());
+
 // Static serving for uploaded photo evidence
 app.use('/uploads', express.static(path.resolve(__dirname, '../uploads')));
 
@@ -45,6 +50,7 @@ app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 
 // Core API Routes
 app.use('/api', healthRoutes);
+app.use('/api/auth', authRoutes);
 app.use('/api/system', systemRoutes);
 app.use('/api/gis', gisRoutes);
 app.use('/api/jurisdictions', jurisdictionRoutes);

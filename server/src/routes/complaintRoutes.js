@@ -16,41 +16,42 @@ const {
   evaluateComplaintSlaHandler
 } = require('../controllers/slaController');
 const { handlePhotoUpload } = require('../middleware/uploadMiddleware');
+const { requireAuth, requireRole, optionalAuth } = require('../middleware/authMiddleware');
 
-// AI Issue Classification route (accepts description + optional photo)
+// AI Issue Classification route (accepts description + optional photo - Public)
 router.post('/classify', handlePhotoUpload('photo'), classifyComplaint);
 
-// Duplicate check route
+// Duplicate check route (Public)
 router.get('/check-duplicate', checkDuplicate);
 
-// Submit new complaint route (accepts form data + optional photo)
-router.post('/', handlePhotoUpload('photo'), submitComplaint);
+// Submit new complaint route (Public intake with optional authentication)
+router.post('/', optionalAuth, handlePhotoUpload('photo'), submitComplaint);
 
-// List complaints
-router.get('/', listComplaints);
+// List complaints across the system (Restricted to OPERATOR and ADMIN)
+router.get('/', requireAuth, requireRole('OPERATOR', 'ADMIN'), listComplaints);
 
-// Single complaint by ID or code (returns complete lifecycle: complaint, routing, status history)
-router.get('/:id', getComplaintLifecycleHandler);
+// Single complaint by ID or code (Public citizen tracking with optionalAuth)
+router.get('/:id', optionalAuth, getComplaintLifecycleHandler);
 
-// Route complaint endpoint (Stage 5)
-router.post('/:complaintId/route', require('../controllers/routingController').routeComplaintHandler);
+// Route complaint endpoint (Stage 5 - Operator / Admin only)
+router.post('/:complaintId/route', requireAuth, requireRole('OPERATOR', 'ADMIN'), require('../controllers/routingController').routeComplaintHandler);
 
-// Get complaint routing decision (Stage 5)
+// Get complaint routing decision (Public citizen tracking access)
 router.get('/:complaintId/routing', require('../controllers/routingController').getComplaintRoutingHandler);
 
-// Stage 6: Update complaint status with state machine validation
-router.patch('/:complaintId/status', updateStatusHandler);
+// Stage 6: Update complaint status with state machine validation (Operator / Admin only)
+router.patch('/:complaintId/status', requireAuth, requireRole('OPERATOR', 'ADMIN'), updateStatusHandler);
 
-// Stage 6: Get complaint status history
-router.get('/:complaintId/status-history', getStatusHistoryHandler);
+// Stage 6: Get complaint status history (Public citizen tracking with optionalAuth)
+router.get('/:complaintId/status-history', optionalAuth, getStatusHistoryHandler);
 
-// Stage 7: Get complaint SLA details & event history
+// Stage 7: Get complaint SLA details & event history (Public citizen tracking)
 router.get('/:complaintId/sla', getComplaintSlaHandler);
 
-// Stage 7: Evaluate complaint SLA
-router.post('/:complaintId/sla/evaluate', evaluateComplaintSlaHandler);
+// Stage 7: Evaluate complaint SLA (Operator / Admin only)
+router.post('/:complaintId/sla/evaluate', requireAuth, requireRole('OPERATOR', 'ADMIN'), evaluateComplaintSlaHandler);
 
-// Stage 8: Complaint citizen notifications
+// Stage 8: Complaint citizen notifications (Public citizen tracking for case)
 const {
   getComplaintNotificationsHandler,
   getUnreadComplaintNotificationsHandler,

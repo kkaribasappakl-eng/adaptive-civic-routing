@@ -3,10 +3,22 @@ import axios from 'axios';
 const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL || 'http://localhost:4000/api',
   timeout: 10000,
+  withCredentials: true,
   headers: {
     'Content-Type': 'application/json'
   }
 });
+
+let currentAuthToken = null;
+
+export const setAuthToken = (token) => {
+  currentAuthToken = token;
+  if (token) {
+    api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+  } else {
+    delete api.defaults.headers.common['Authorization'];
+  }
+};
 
 /**
  * Fetch health status from backend API
@@ -977,6 +989,138 @@ export const getAnalyticsSpatial = async (params = {}) => {
     return {
       success: false,
       error: error.response?.data?.error || error.message
+    };
+  }
+};
+
+/**
+ * Stage 12: Login with email & password
+ * POST /api/auth/login
+ */
+export const loginUser = async (email, password) => {
+  try {
+    const response = await api.post('/auth/login', { email, password });
+    if (response.data?.data?.token) {
+      setAuthToken(response.data.data.token);
+    }
+    return {
+      success: true,
+      data: response.data.data
+    };
+  } catch (error) {
+    return {
+      success: false,
+      status: error.response?.status,
+      error: error.response?.data?.error || error.response?.data?.message || 'Login failed'
+    };
+  }
+};
+
+/**
+ * Stage 12: Backend-controlled 1-click Demo Login
+ * POST /api/auth/demo-login
+ * Sends ONLY role ('OPERATOR' | 'ADMIN' | 'CITIZEN')
+ * NEVER exposes passwords in frontend code!
+ */
+export const demoLoginUser = async (role) => {
+  try {
+    const response = await api.post('/auth/demo-login', { role });
+    if (response.data?.data?.token) {
+      setAuthToken(response.data.data.token);
+    }
+    return {
+      success: true,
+      data: response.data.data
+    };
+  } catch (error) {
+    return {
+      success: false,
+      status: error.response?.status,
+      error: error.response?.data?.error || error.response?.data?.message || 'Demo login failed'
+    };
+  }
+};
+
+/**
+ * Stage 12: Register new citizen
+ * POST /api/auth/register
+ */
+export const registerUser = async (fullName, email, password, phone = null) => {
+  try {
+    const response = await api.post('/auth/register', { fullName, email, password, phone });
+    if (response.data?.data?.token) {
+      setAuthToken(response.data.data.token);
+    }
+    return {
+      success: true,
+      data: response.data.data
+    };
+  } catch (error) {
+    return {
+      success: false,
+      status: error.response?.status,
+      error: error.response?.data?.error || error.response?.data?.message || 'Registration failed'
+    };
+  }
+};
+
+/**
+ * Stage 12: Get current authenticated user profile
+ * GET /api/auth/me
+ */
+export const getCurrentUser = async () => {
+  try {
+    const response = await api.get('/auth/me');
+    return {
+      success: true,
+      data: response.data?.data?.user
+    };
+  } catch (error) {
+    return {
+      success: false,
+      status: error.response?.status,
+      error: error.response?.data?.error || error.response?.data?.message || 'Not authenticated'
+    };
+  }
+};
+
+/**
+ * Stage 12: Logout user
+ * POST /api/auth/logout
+ */
+export const logoutUser = async () => {
+  try {
+    const response = await api.post('/auth/logout');
+    setAuthToken(null);
+    return {
+      success: true,
+      data: response.data
+    };
+  } catch (error) {
+    setAuthToken(null);
+    return {
+      success: false,
+      error: error.response?.data?.error || error.message
+    };
+  }
+};
+
+/**
+ * Stage 12: Admin provisioning of Operator/Admin accounts
+ * POST /api/auth/users
+ */
+export const provisionUser = async (userData) => {
+  try {
+    const response = await api.post('/auth/users', userData);
+    return {
+      success: true,
+      data: response.data?.data
+    };
+  } catch (error) {
+    return {
+      success: false,
+      status: error.response?.status,
+      error: error.response?.data?.error || error.response?.data?.message || 'User provisioning failed'
     };
   }
 };

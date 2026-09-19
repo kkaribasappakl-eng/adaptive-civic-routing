@@ -58,14 +58,16 @@ const startReviewHandler = async (req, res, next) => {
     const { reviewId } = req.params;
     const { reviewerName, note } = req.body || {};
 
-    if (!reviewerName || !reviewerName.trim()) {
+    const effectiveReviewer = (reviewerName && reviewerName.trim()) || req.user?.fullName;
+
+    if (!effectiveReviewer) {
       return res.status(400).json({
         success: false,
         error: 'reviewerName is required to start review.'
       });
     }
 
-    const result = await startReview(reviewId, reviewerName, note);
+    const result = await startReview(reviewId, effectiveReviewer, note);
     return res.status(200).json({
       success: true,
       message: 'Review investigation started successfully.',
@@ -91,7 +93,9 @@ const resolveReviewHandler = async (req, res, next) => {
     const { reviewId } = req.params;
     const { actionType, authorityId, departmentId, reviewerName, note } = req.body || {};
 
-    if (!reviewerName || !reviewerName.trim()) {
+    const effectiveReviewer = (reviewerName && reviewerName.trim()) || req.user?.fullName;
+
+    if (!effectiveReviewer) {
       return res.status(400).json({
         success: false,
         error: 'reviewerName is required to resolve a review.'
@@ -109,7 +113,7 @@ const resolveReviewHandler = async (req, res, next) => {
       actionType,
       authorityId,
       departmentId,
-      reviewerName,
+      reviewerName: effectiveReviewer,
       note
     });
 
@@ -138,7 +142,9 @@ const markUnroutableHandler = async (req, res, next) => {
     const { reviewId } = req.params;
     const { reviewerName, reason } = req.body || {};
 
-    if (!reviewerName || !reviewerName.trim()) {
+    const effectiveReviewer = (reviewerName && reviewerName.trim()) || req.user?.fullName;
+
+    if (!effectiveReviewer) {
       return res.status(400).json({
         success: false,
         error: 'reviewerName is required to mark a case unroutable.'
@@ -152,7 +158,7 @@ const markUnroutableHandler = async (req, res, next) => {
       });
     }
 
-    const result = await markUnroutable(reviewId, reviewerName, reason);
+    const result = await markUnroutable(reviewId, effectiveReviewer, reason);
     return res.status(200).json({
       success: true,
       message: 'Complaint successfully marked as UNROUTABLE.',

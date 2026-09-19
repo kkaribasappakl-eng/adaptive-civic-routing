@@ -1,11 +1,14 @@
 const express = require('express');
 const router = express.Router();
 const analyticsController = require('../controllers/analyticsController');
+const { requireAuth, requireRole } = require('../middleware/authMiddleware');
 
 /**
  * Stage 11: Operational Analytics & Routing Intelligence API Routes
+ * Restricted to OPERATOR and ADMIN roles.
  * All endpoints are READ-ONLY (GET).
  */
+router.use(requireAuth, requireRole('OPERATOR', 'ADMIN'));
 
 router.get('/overview', analyticsController.getOverview);
 router.get('/trends', analyticsController.getTrends);

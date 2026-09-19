@@ -76,7 +76,7 @@ const createReviewCase = async (complaintId, reason, reviewerName = null, client
   try {
     const io = getIO();
     if (io) {
-      io.emit('review:created', {
+      io.to('privileged_operators').emit('review:created', {
         reviewId: newReview.id,
         complaintId: complaint.id,
         complaintCode: complaint.complaint_code,
@@ -471,7 +471,7 @@ const startReview = async (reviewId, reviewerName, note = null) => {
   try {
     const io = getIO();
     if (io) {
-      io.emit('review:updated', {
+      io.to('privileged_operators').emit('review:updated', {
         reviewId: updatedReview.id,
         complaintId: updatedReview.complaint_id,
         reviewStatus: 'IN_REVIEW',
@@ -796,7 +796,7 @@ const resolveReview = async (reviewId, { actionType, authorityId, departmentId, 
   try {
     const io = getIO();
     if (io) {
-      io.emit('review:resolved', {
+      io.to('privileged_operators').emit('review:resolved', {
         reviewId: updatedReview.id,
         complaintId: updatedReview.complaint_id,
         actionType: normalizedAction,
@@ -984,7 +984,7 @@ const markUnroutable = async (reviewId, reviewerName, reason) => {
   try {
     const io = getIO();
     if (io) {
-      io.emit('review:unroutable', {
+      io.to('privileged_operators').emit('review:unroutable', {
         reviewId: updatedReview.id,
         complaintId: updatedReview.complaint_id,
         reviewerName: updatedReview.reviewer_name,

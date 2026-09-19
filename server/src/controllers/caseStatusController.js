@@ -41,13 +41,64 @@ const updateStatusHandler = async (req, res, next) => {
 };
 
 /**
+ * Sanitizes complaint lifecycle payload for unauthenticated / citizen viewers.
+ * Strictly hides internal reviewer notes, operator emails, and privileged metadata.
+ */
+const sanitizeLifecycleForCitizen = (complaint) => {
+  if (!complaint) return null;
+  return {
+    id: complaint.id,
+    complaint_code: complaint.complaint_code,
+    description: complaint.description,
+    category: complaint.category,
+    category_confidence: complaint.category_confidence,
+    photo_url: complaint.photo_url,
+    latitude: complaint.latitude,
+    longitude: complaint.longitude,
+    status: complaint.status,
+    routed_at: complaint.routed_at,
+    sla_status: complaint.sla_status,
+    sla_target_at: complaint.sla_target_at,
+    created_at: complaint.created_at,
+    updated_at: complaint.updated_at,
+    geojson: complaint.geojson,
+    routing: complaint.routing ? {
+      routing_status: complaint.routing.routing_status,
+      authority_name: complaint.routing.authority_name,
+      department_name: complaint.routing.department_name,
+      routed_at: complaint.routing.routed_at
+    } : null,
+    status_history: (complaint.status_history || []).map(h => ({
+      id: h.id,
+      previous_status: h.previous_status,
+      new_status: h.new_status,
+      changed_by: h.changed_by && h.changed_by.includes('@') ? 'Civic Operations' : (h.changed_by || 'System'),
+      reason: h.reason,
+      created_at: h.created_at
+    }))
+  };
+};
+
+/**
  * Fetches chronological status history for a complaint
  * GET /api/complaints/:complaintId/status-history
  */
 const getStatusHistoryHandler = async (req, res, next) => {
   try {
     const { complaintId } = req.params;
-    const history = await caseStatusService.getComplaintStatusHistory(complaintId);
+    const rawHistory = await caseStatusService.getComplaintStatusHistory(complaintId);
+    const isPrivileged = req.user && ['OPERATOR', 'ADMIN'].includes(req.user.role);
+
+    const history = isPrivileged
+      ? rawHistory
+      : rawHistory.map(h => ({
+          id: h.id,
+          previous_status: h.previous_status,
+          new_status: h.new_status,
+          changed_by: h.changed_by && h.changed_by.includes('@') ? 'Civic Operations' : (h.changed_by || 'System'),
+          reason: h.reason,
+          created_at: h.created_at
+        }));
 
     res.status(200).json({
       success: true,
@@ -74,9 +125,12 @@ const getComplaintLifecycleHandler = async (req, res, next) => {
       });
     }
 
+    const isPrivileged = req.user && ['OPERATOR', 'ADMIN'].includes(req.user.role);
+    const data = isPrivileged ? complaint : sanitizeLifecycleForCitizen(complaint);
+
     res.status(200).json({
       success: true,
-      data: complaint
+      data
     });
   } catch (error) {
     next(error);

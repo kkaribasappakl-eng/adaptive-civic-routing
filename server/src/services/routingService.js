@@ -216,8 +216,7 @@ const routeComplaint = async (complaintIdOrCode) => {
   // 8. Emit Socket.IO events with safe metadata
   try {
     const io = getIO();
-    const eventName = routingStatus === 'ROUTED' ? 'routing:completed' : 'routing:review_required';
-    io.emit(eventName, {
+    const payload = {
       routingDecisionId: savedDecision.id,
       complaintId: complaint.id,
       complaintCode: complaint.complaint_code,
@@ -230,7 +229,13 @@ const routeComplaint = async (complaintIdOrCode) => {
       jurisdictionVersion: activeVersion.version_code,
       reason,
       timestamp: new Date().toISOString()
-    });
+    };
+
+    if (routingStatus === 'ROUTED') {
+      io.emit('routing:completed', payload);
+    } else {
+      io.to('privileged_operators').emit('routing:review_required', payload);
+    }
 
     // Also emit complaint:status_changed for Stage 6 lifecycle tracking
     const newComplaintStatus = routingStatus === 'ROUTED' ? 'ROUTED' : 'HUMAN_REVIEW';
