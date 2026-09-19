@@ -1125,6 +1125,69 @@ export const provisionUser = async (userData) => {
   }
 };
 
+/**
+ * Stage 13: Query immutable audit logs
+ * GET /api/audit
+ */
+export const getAuditLogs = async (params = {}) => {
+  try {
+    const response = await api.get('/audit', { params });
+    return {
+      success: true,
+      data: response.data?.data,
+      pagination: response.data?.pagination,
+      role: response.data?.role
+    };
+  } catch (error) {
+    return {
+      success: false,
+      status: error.response?.status,
+      error: error.response?.data?.error || error.response?.data?.message || 'Failed to fetch audit logs'
+    };
+  }
+};
+
+/**
+ * Stage 13: Get audit log by ID
+ * GET /api/audit/:id
+ */
+export const getAuditLogById = async (id) => {
+  try {
+    const response = await api.get(`/audit/${id}`);
+    return {
+      success: true,
+      data: response.data?.data
+    };
+  } catch (error) {
+    return {
+      success: false,
+      status: error.response?.status,
+      error: error.response?.data?.error || error.response?.data?.message || 'Failed to fetch audit log detail'
+    };
+  }
+};
+
+/**
+ * Stage 13: Get audit log summary metrics
+ * GET /api/audit/summary
+ */
+export const getAuditSummary = async (params = {}) => {
+  try {
+    const response = await api.get('/audit/summary', { params });
+    return {
+      success: true,
+      data: response.data?.data,
+      role: response.data?.role
+    };
+  } catch (error) {
+    return {
+      success: false,
+      status: error.response?.status,
+      error: error.response?.data?.error || error.response?.data?.message || 'Failed to fetch audit summary'
+    };
+  }
+};
+
 export default api;
 
 

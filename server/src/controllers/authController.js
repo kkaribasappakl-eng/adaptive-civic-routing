@@ -1,4 +1,5 @@
 const authService = require('../services/authService');
+const auditService = require('../services/auditService');
 
 const setAuthCookie = (res, token) => {
   res.cookie('token', token, {
@@ -15,10 +16,22 @@ const setAuthCookie = (res, token) => {
  */
 const register = async (req, res, next) => {
   try {
-    const { fullName, email, password } = req.body;
-    const { user, token } = await authService.registerCitizen({ fullName, email, password });
+    const { fullName, email, password, phone } = req.body;
+    const { user, token } = await authService.registerCitizen({ fullName, email, password, phone });
 
     setAuthCookie(res, token);
+
+    // Audit successful citizen registration
+    await auditService.logAuditEvent({
+      actorUserId: user.id,
+      actorRole: 'CITIZEN',
+      action: 'AUTH_REGISTER',
+      entityType: 'USER',
+      entityId: user.id,
+      result: 'SUCCESS',
+      metadata: { email: user.email, role: user.role },
+      request: req
+    });
 
     res.status(201).json({
       success: true,
@@ -38,11 +51,24 @@ const register = async (req, res, next) => {
  * POST /api/auth/login
  */
 const login = async (req, res, next) => {
+  const { email } = req.body;
   try {
-    const { email, password } = req.body;
+    const { password } = req.body;
     const { user, token } = await authService.login({ email, password });
 
     setAuthCookie(res, token);
+
+    // Audit successful login
+    await auditService.logAuditEvent({
+      actorUserId: user.id,
+      actorRole: user.role,
+      action: 'AUTH_LOGIN',
+      entityType: 'USER',
+      entityId: user.id,
+      result: 'SUCCESS',
+      metadata: { email: user.email, role: user.role },
+      request: req
+    });
 
     res.status(200).json({
       success: true,
@@ -50,6 +76,19 @@ const login = async (req, res, next) => {
       data: { user, token }
     });
   } catch (error) {
+    // Audit failed login (Record email only, NEVER password!)
+    await auditService.logAuditEvent({
+      actorUserId: null,
+      actorRole: 'ANONYMOUS',
+      action: 'AUTH_LOGIN_FAILED',
+      entityType: 'USER',
+      entityId: email || 'unknown',
+      result: 'FAILURE',
+      reason: error.message || 'Invalid credentials',
+      metadata: { attemptedEmail: email },
+      request: req
+    });
+
     if (error.status) {
       return res.status(error.status).json({ success: false, error: error.message });
     }
@@ -68,6 +107,18 @@ const demoLogin = async (req, res, next) => {
     const { user, token } = await authService.demoLogin(role);
 
     setAuthCookie(res, token);
+
+    // Audit demo login
+    await auditService.logAuditEvent({
+      actorUserId: user.id,
+      actorRole: user.role,
+      action: 'AUTH_LOGIN',
+      entityType: 'USER',
+      entityId: user.id,
+      result: 'SUCCESS',
+      metadata: { demoRole: role, email: user.email, isDemo: true },
+      request: req
+    });
 
     res.status(200).json({
       success: true,
@@ -107,6 +158,17 @@ const getMe = async (req, res, next) => {
  * POST /api/auth/logout
  */
 const logout = async (req, res) => {
+  // Audit logout event
+  await auditService.logAuditEvent({
+    actorUserId: req.user?.id || null,
+    actorRole: req.user?.role || 'ANONYMOUS',
+    action: 'AUTH_LOGOUT',
+    entityType: 'USER',
+    entityId: req.user?.id || null,
+    result: 'SUCCESS',
+    request: req
+  });
+
   res.clearCookie('token', {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
@@ -129,6 +191,22 @@ const provisionUser = async (req, res, next) => {
       { fullName, email, password, role },
       req.user.id
     );
+
+    // Audit user provisioning with admin actor id
+    await auditService.logAuditEvent({
+      actorUserId: req.user.id,
+      actorRole: req.user.role,
+      action: 'AUTH_USER_PROVISIONED',
+      entityType: 'USER',
+      entityId: newUser.id,
+      result: 'SUCCESS',
+      metadata: {
+        provisionedEmail: newUser.email,
+        provisionedRole: newUser.role,
+        provisionedByAdminId: req.user.id
+      },
+      request: req
+    });
 
     res.status(201).json({
       success: true,

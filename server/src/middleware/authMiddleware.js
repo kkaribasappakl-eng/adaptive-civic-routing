@@ -15,6 +15,31 @@ const extractToken = (req) => {
   return null;
 };
 
+const logAccessDenied = async (req, reason, requiredRoles = null) => {
+  try {
+    const { logAuditEvent } = require('../services/auditService');
+    await logAuditEvent({
+      actorUserId: req.user?.id || null,
+      actorRole: req.user?.role || 'ANONYMOUS',
+      action: 'AUTH_ACCESS_DENIED',
+      entityType: 'SECURITY',
+      entityId: req.originalUrl || req.path,
+      result: 'FAILURE',
+      reason,
+      metadata: {
+        method: req.method,
+        path: req.originalUrl || req.path,
+        requiredRoles: requiredRoles || [],
+        userRole: req.user?.role || 'ANONYMOUS'
+      },
+      request: req
+    });
+  } catch (auditErr) {
+    // Fail-safe: Audit failure must NEVER break business security response!
+    console.warn('[Audit Security Warning] Access denied audit logging failed:', auditErr.message);
+  }
+};
+
 /**
  * Mandatory Authentication Middleware
  * Validates JWT, verifies active status in PostgreSQL, and attaches req.user.
@@ -24,6 +49,7 @@ const requireAuth = async (req, res, next) => {
   const token = extractToken(req);
 
   if (!token) {
+    await logAccessDenied(req, 'Authentication required. No token provided.');
     return res.status(401).json({
       success: false,
       error: 'Authentication required. No token provided.'
@@ -40,6 +66,7 @@ const requireAuth = async (req, res, next) => {
     );
 
     if (userRes.rows.length === 0) {
+      await logAccessDenied(req, 'User account not found.');
       return res.status(401).json({
         success: false,
         error: 'User account not found.'
@@ -49,6 +76,7 @@ const requireAuth = async (req, res, next) => {
     const user = userRes.rows[0];
 
     if (!user.is_active) {
+      await logAccessDenied(req, 'User account is deactivated.');
       return res.status(403).json({
         success: false,
         error: 'User account is deactivated.'
@@ -65,11 +93,13 @@ const requireAuth = async (req, res, next) => {
     next();
   } catch (err) {
     if (err.name === 'TokenExpiredError') {
+      await logAccessDenied(req, 'Authentication token has expired.');
       return res.status(401).json({
         success: false,
         error: 'Authentication token has expired. Please log in again.'
       });
     }
+    await logAccessDenied(req, 'Invalid authentication token.');
     return res.status(401).json({
       success: false,
       error: 'Invalid authentication token.'
@@ -83,8 +113,9 @@ const requireAuth = async (req, res, next) => {
  * Returns 403 Forbidden if user lacks necessary permission.
  */
 const requireRole = (...allowedRoles) => {
-  return (req, res, next) => {
+  return async (req, res, next) => {
     if (!req.user) {
+      await logAccessDenied(req, 'Authentication required before checking role.', allowedRoles);
       return res.status(401).json({
         success: false,
         error: 'Authentication required.'
@@ -92,9 +123,11 @@ const requireRole = (...allowedRoles) => {
     }
 
     if (!allowedRoles.includes(req.user.role)) {
+      const errorMsg = `Forbidden: Access requires one of [${allowedRoles.join(', ')}]. Current role is '${req.user.role}'.`;
+      await logAccessDenied(req, errorMsg, allowedRoles);
       return res.status(403).json({
         success: false,
-        error: `Forbidden: Access requires one of [${allowedRoles.join(', ')}]. Current role is '${req.user.role}'.`
+        error: errorMsg
       });
     }
 

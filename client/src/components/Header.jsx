@@ -46,12 +46,12 @@ export default function Header({ socketConnected, apiHealthy, activeTab = 'compl
           <div>
             <h1 className="text-xl font-bold tracking-tight text-white flex items-center gap-2">
               Adaptive Civic Routing Intelligence System
-              <span className="text-xs uppercase font-mono px-2 py-0.5 rounded bg-blue-500/10 text-blue-400 border border-blue-500/20">
-                Stage 12 RBAC
+              <span className="text-xs uppercase font-mono px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                Stage 13 Audit
               </span>
             </h1>
             <p className="text-xs text-slate-400 font-medium">
-              HackMysuru • Role-Based Access Control & Spatial Routing Intelligence
+              HackMysuru • Immutable Audit Trail & Spatial Routing Intelligence
             </p>
           </div>
         </div>
@@ -111,6 +111,17 @@ export default function Header({ socketConnected, apiHealthy, activeTab = 'compl
             >
               <span>Analytics</span>
               {!isOperator && <span className="text-[10px] text-purple-400">🔒</span>}
+            </button>
+            <button
+              onClick={() => onTabChange && onTabChange('audit')}
+              className={`px-3 py-1.5 rounded-md font-semibold transition flex items-center gap-1 ${
+                activeTab === 'audit'
+                  ? 'bg-amber-600/30 text-amber-300 border border-amber-500/40 shadow-sm'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              <span>Audit Trail</span>
+              {!isOperator && <span className="text-[10px] text-amber-400">🔒</span>}
             </button>
           </nav>
 

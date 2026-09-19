@@ -8,6 +8,7 @@ import ComplaintFeed from './components/ComplaintFeed';
 import RoutingView from './components/RoutingView';
 import ReviewWorkspace from './components/ReviewWorkspace';
 import AnalyticsDashboard from './components/AnalyticsDashboard';
+import AuditLogDashboard from './components/AuditLogDashboard';
 import CaseTrackerModal from './components/CaseTrackerModal';
 import AuthModal from './components/AuthModal';
 import AccessGuard from './components/AccessGuard';
@@ -17,7 +18,7 @@ import socket from './services/socket';
 import { Compass, Database, Layers, ShieldCheck, FileText, Radio, CheckCircle2, Cpu } from 'lucide-react';
 
 function AppContent() {
-  const [activeTab, setActiveTab] = useState('complaints'); // 'complaints' | 'routing' | 'review' | 'jurisdictions' | 'analytics'
+  const [activeTab, setActiveTab] = useState('complaints'); // 'complaints' | 'routing' | 'review' | 'jurisdictions' | 'analytics' | 'audit'
   const [apiHealth, setApiHealth] = useState(null);
   const [dbStatus, setDbStatus] = useState(null);
   const [socketConnected, setSocketConnected] = useState(socket.connected);
@@ -181,6 +182,19 @@ function AppContent() {
               onBackToPublic={() => setActiveTab('complaints')} 
             />
           )
+        ) : activeTab === 'audit' ? (
+          /* =================================================== */
+          /* STAGE 13 — IMMUTABLE AUDIT TRAIL & SECURITY EVENTS  */
+          /* =================================================== */
+          isOperator ? (
+            <AuditLogDashboard />
+          ) : (
+            <AccessGuard 
+              requiredRole="OPERATOR" 
+              tabTitle="Immutable Civic Audit Trail" 
+              onBackToPublic={() => setActiveTab('complaints')} 
+            />
+          )
         ) : (
           /* =================================================== */
           /* STAGES 2, 3, 10 & 12 — JURISDICTION MANAGEMENT      */
@@ -234,7 +248,7 @@ function AppContent() {
 
       {/* Civic Footer */}
       <footer className="border-t border-slate-900 bg-slate-950/80 px-6 py-4 text-center text-xs text-slate-500">
-        Adaptive Civic Routing Intelligence System • HackMysuru Sub-Problem: Routing • Stage 12: Authentication, Authorization & Role-Based Access Control
+        Adaptive Civic Routing Intelligence System • HackMysuru Sub-Problem: Routing • Stage 13: Immutable Audit Trail & Security Event Auditing
       </footer>
     </div>
   );

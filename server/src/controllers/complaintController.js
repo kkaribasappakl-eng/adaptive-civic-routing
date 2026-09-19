@@ -30,6 +30,28 @@ const submitComplaint = async (req, res, next) => {
 
     const result = await complaintService.createComplaint(req.body, photoUrl);
 
+    // Audit complaint creation
+    try {
+      const { logAuditEvent } = require('../services/auditService');
+      await logAuditEvent({
+        actorUserId: req.user?.id || null,
+        actorRole: req.user?.role || 'CITIZEN',
+        action: 'COMPLAINT_CREATED',
+        entityType: 'COMPLAINT',
+        entityId: result.complaint.id,
+        result: 'SUCCESS',
+        metadata: {
+          complaintCode: result.complaint.complaint_code,
+          category: result.complaint.category,
+          latitude: result.complaint.latitude,
+          longitude: result.complaint.longitude
+        },
+        request: req
+      });
+    } catch (auditErr) {
+      console.warn('[Audit Warning] Complaint creation audit failed:', auditErr.message);
+    }
+
     res.status(201).json({
       success: true,
       data: result.complaint,

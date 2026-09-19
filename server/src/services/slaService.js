@@ -274,6 +274,27 @@ const evaluateComplaintSla = async (complaintId, options = {}) => {
       ]);
       eventRecord = evRes.rows[0];
 
+      // Stage 13: Centralized Transactional Audit Logging
+      const { logAuditEvent } = require('./auditService');
+      await logAuditEvent({
+        actorUserId: null,
+        actorRole: 'SYSTEM_SLA_ENGINE',
+        action: eventType,
+        entityType: 'SLA',
+        entityId: complaintId,
+        result: 'SUCCESS',
+        reason,
+        metadata: {
+          complaintCode: complaint.complaint_code,
+          previousSlaStatus: currentSlaStatus,
+          newSlaStatus,
+          warningAt: complaint.sla_warning_at,
+          targetAt: complaint.sla_target_at,
+          breachedAt: complaint.sla_breached_at
+        },
+        client // Transaction coupled!
+      });
+
       // Real-time Socket.IO emission with safe metadata
       const io = getIO();
       if (io) {

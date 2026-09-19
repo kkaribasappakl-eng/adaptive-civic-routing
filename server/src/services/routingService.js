@@ -202,6 +202,33 @@ const routeComplaint = async (complaintIdOrCode) => {
     // 8. Initialize Stage 7 SLA tracking in PostgreSQL
     await initializeComplaintSla(complaint.id, client);
 
+    // 9. Stage 13: Transaction-coupled Audit Logging
+    const auditAction = routingStatus === 'ROUTED' 
+      ? 'ROUTING_EXECUTED' 
+      : (routingStatus === 'UNROUTABLE' ? 'ROUTING_MARKED_UNROUTABLE' : 'ROUTING_HUMAN_REVIEW_REQUIRED');
+
+    const { logAuditEvent } = require('./auditService');
+    await logAuditEvent({
+      actorUserId: null,
+      actorRole: 'SYSTEM_ROUTING_ENGINE',
+      action: auditAction,
+      entityType: 'ROUTING_DECISION',
+      entityId: savedDecision.id,
+      result: 'SUCCESS',
+      reason,
+      metadata: {
+        complaintId: complaint.id,
+        complaintCode: complaint.complaint_code,
+        routingStatus,
+        routingMethod,
+        authorityId,
+        departmentId,
+        jurisdictionVersionId: activeVersion.id,
+        jurisdictionVersionCode: activeVersion.version_code
+      },
+      client // Transaction-coupled!
+    });
+
     await client.query('COMMIT');
   } catch (err) {
     await client.query('ROLLBACK');

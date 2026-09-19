@@ -20,9 +20,31 @@ const updateStatusHandler = async (req, res, next) => {
       complaintId,
       status,
       reason,
-      changedBy || 'civic_operator',
+      changedBy || req.user?.fullName || 'civic_operator',
       metadata
     );
+
+    // Audit complaint status change
+    try {
+      const { logAuditEvent } = require('../services/auditService');
+      await logAuditEvent({
+        actorUserId: req.user?.id || null,
+        actorRole: req.user?.role || 'OPERATOR',
+        action: 'COMPLAINT_STATUS_CHANGED',
+        entityType: 'COMPLAINT',
+        entityId: complaintId,
+        result: 'SUCCESS',
+        reason,
+        metadata: {
+          previousStatus: result.previousStatus,
+          newStatus: result.newStatus,
+          changedBy: changedBy || req.user?.fullName || 'civic_operator'
+        },
+        request: req
+      });
+    } catch (auditErr) {
+      console.warn('[Audit Warning] Status change audit failed:', auditErr.message);
+    }
 
     res.status(200).json({
       success: true,

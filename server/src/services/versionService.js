@@ -169,6 +169,25 @@ const createDraftVersion = async ({ versionCode, notes, source, createdBy = 'civ
       })
     ]);
 
+    // Stage 13: Centralized Transaction-coupled Audit Logging
+    const { logAuditEvent } = require('./auditService');
+    await logAuditEvent({
+      actorUserId: null,
+      actorRole: 'ADMIN',
+      action: 'JURISDICTION_DRAFT_CREATED',
+      entityType: 'JURISDICTION',
+      entityId: newVersion.id,
+      result: 'SUCCESS',
+      reason: newVersion.notes || 'Created draft version',
+      metadata: {
+        versionCode: newVersion.version_code,
+        jurisdictionCount: jurisdictions.length,
+        status: 'DRAFT',
+        createdBy
+      },
+      client // Transaction coupled!
+    });
+
     await client.query('COMMIT');
 
     // Automatically validate the newly created version
@@ -203,6 +222,7 @@ const createDraftVersion = async ({ versionCode, notes, source, createdBy = 'civ
  * Persists validation result to database.
  */
 const validateVersion = async (versionIdOrCode, dbClient = pool) => {
+  const clientProvided = dbClient !== pool;
   const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(versionIdOrCode);
 
   // 1. Fetch version record
@@ -415,6 +435,29 @@ const validateVersion = async (versionIdOrCode, dbClient = pool) => {
     WHERE id = $4;
   `, [validationStatus, validationMessage, JSON.stringify(details), version.id]);
 
+  // Stage 13: Audit logging for boundary validation
+  try {
+    const { logAuditEvent } = require('./auditService');
+    await logAuditEvent({
+      actorUserId: null,
+      actorRole: 'ADMIN',
+      action: 'JURISDICTION_VALIDATED',
+      entityType: 'JURISDICTION',
+      entityId: version.id,
+      result: isValid ? 'SUCCESS' : 'FAILURE',
+      reason: validationMessage,
+      metadata: {
+        versionCode: version.version_code,
+        validationStatus,
+        issuesCount: issues.length
+      },
+      client: clientProvided ? dbClient : null
+    });
+  } catch (auditErr) {
+    if (clientProvided) throw auditErr;
+    console.warn('[Audit Warning] Jurisdiction validation audit failed:', auditErr.message);
+  }
+
   return {
     versionId: version.id,
     versionCode: version.version_code,
@@ -616,6 +659,27 @@ const activateVersion = async (versionIdOrCode, operator = 'Civic Administrator'
         activatedAt: new Date().toISOString()
       })
     ]);
+
+    // Stage 13: Centralized Transaction-coupled Audit Logging
+    const { logAuditEvent } = require('./auditService');
+    await logAuditEvent({
+      actorUserId: null,
+      actorRole: 'ADMIN',
+      action: 'JURISDICTION_ACTIVATED',
+      entityType: 'JURISDICTION',
+      entityId: targetVersion.id,
+      result: 'SUCCESS',
+      reason,
+      metadata: {
+        previousVersionId: previousVersion ? previousVersion.id : null,
+        previousVersionCode: previousVersion ? previousVersion.version_code : null,
+        targetVersionId: targetVersion.id,
+        targetVersionCode: targetVersion.version_code,
+        operator,
+        transition: `${previousVersion ? previousVersion.version_code : 'NONE'} -> ${targetVersion.version_code}`
+      },
+      client // SAME TRANSACTION CLIENT!
+    });
 
     await client.query('COMMIT');
 

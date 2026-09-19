@@ -459,6 +459,24 @@ const startReview = async (reviewId, reviewerName, note = null) => {
     );
     actionRecord = actRes.rows[0];
 
+    // Stage 13: Transactional Audit Logging
+    const { logAuditEvent } = require('./auditService');
+    await logAuditEvent({
+      actorUserId: null,
+      actorRole: 'OPERATOR',
+      action: 'REVIEW_STARTED',
+      entityType: 'REVIEW',
+      entityId: reviewId,
+      result: 'SUCCESS',
+      reason: note ? note.trim() : null,
+      metadata: {
+        complaintId: review.complaint_id,
+        complaintCode: review.complaint_code,
+        reviewerName: reviewerName.trim()
+      },
+      client // Transaction coupled!
+    });
+
     await client.query('COMMIT');
   } catch (err) {
     await client.query('ROLLBACK');
@@ -784,6 +802,30 @@ const resolveReview = async (reviewId, { actionType, authorityId, departmentId, 
     );
     actionRecord = actRes.rows[0];
 
+    // Stage 13: Transactional Audit Logging
+    const { logAuditEvent } = require('./auditService');
+    const auditAction = normalizedAction === 'RETURN_TO_TRIAGE' ? 'REVIEW_RETURNED_TO_TRIAGE' : 'REVIEW_RESOLVED';
+    await logAuditEvent({
+      actorUserId: null,
+      actorRole: 'OPERATOR',
+      action: auditAction,
+      entityType: 'REVIEW',
+      entityId: reviewId,
+      result: 'SUCCESS',
+      reason: note ? note.trim() : null,
+      metadata: {
+        complaintId: row.complaint_id,
+        complaintCode: row.complaint_code,
+        actionType: normalizedAction,
+        authorityId: verifiedAuthority ? verifiedAuthority.id : null,
+        departmentId: verifiedDepartment ? verifiedDepartment.id : null,
+        authorityName: verifiedAuthority?.name || null,
+        departmentName: verifiedDepartment?.name || null,
+        reviewerName: reviewerName.trim()
+      },
+      client // Transaction coupled!
+    });
+
     await client.query('COMMIT');
   } catch (err) {
     await client.query('ROLLBACK');
@@ -971,6 +1013,25 @@ const markUnroutable = async (reviewId, reviewerName, reason) => {
       ]
     );
     actionRecord = actRes.rows[0];
+
+    // Stage 13: Transactional Audit Logging
+    const { logAuditEvent } = require('./auditService');
+    await logAuditEvent({
+      actorUserId: null,
+      actorRole: 'OPERATOR',
+      action: 'ROUTING_MARKED_UNROUTABLE',
+      entityType: 'REVIEW',
+      entityId: reviewId,
+      result: 'SUCCESS',
+      reason: reason.trim(),
+      metadata: {
+        complaintId: row.complaint_id,
+        complaintCode: row.complaint_code,
+        reviewStatus: 'REJECTED',
+        reviewerName: reviewerName.trim()
+      },
+      client // Transaction coupled!
+    });
 
     await client.query('COMMIT');
   } catch (err) {

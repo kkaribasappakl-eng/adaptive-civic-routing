@@ -135,6 +135,28 @@ const createNotification = async ({
 
   const notification = result.rows[0];
 
+  // Stage 13: Audit logging for notification creation
+  try {
+    const { logAuditEvent } = require('./auditService');
+    await logAuditEvent({
+      actorUserId: null,
+      actorRole: 'SYSTEM_NOTIFICATION_ENGINE',
+      action: 'NOTIFICATION_CREATED',
+      entityType: 'NOTIFICATION',
+      entityId: notification.id,
+      result: 'SUCCESS',
+      metadata: {
+        complaintId: notification.complaint_id,
+        notificationType: notification.notification_type,
+        title: notification.title
+      },
+      client
+    });
+  } catch (auditErr) {
+    if (client) throw auditErr;
+    console.warn('[Audit Warning] Notification audit failed:', auditErr.message);
+  }
+
   // Emit Socket.IO event strictly AFTER successful DB persistence
   try {
     const io = getIO();
