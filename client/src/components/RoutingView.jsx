@@ -18,6 +18,14 @@ import {
 import { getRoutingDecisions } from '../services/api';
 import socket from '../services/socket';
 import RoutingDecisionModal from './RoutingDecisionModal';
+import {
+  getDecisionAuthority,
+  getDecisionDepartment,
+  getDecisionJurisdiction,
+  getDecisionVersion,
+  getDecisionReason,
+  getDecisionTimestamp
+} from '../services/routingDisplay';
 
 export default function RoutingView() {
   const [decisions, setDecisions] = useState([]);
@@ -59,22 +67,27 @@ export default function RoutingView() {
   }, []);
 
   const filteredDecisions = decisions.filter((d) => {
-    if (filterStatus !== 'ALL' && d.routing_status !== filterStatus) return false;
+    const status = d.routing_status || d.routingStatus;
+    if (filterStatus !== 'ALL' && status !== filterStatus) return false;
     if (searchTerm) {
       const term = searchTerm.toLowerCase();
-      const codeMatch = d.complaint_code?.toLowerCase().includes(term);
-      const authMatch = d.authority_name?.toLowerCase().includes(term);
-      const deptMatch = d.department_name?.toLowerCase().includes(term);
-      const catMatch = d.category?.toLowerCase().includes(term);
-      const verMatch = d.version_code?.toLowerCase().includes(term);
-      return codeMatch || authMatch || deptMatch || catMatch || verMatch;
+      const codeMatch = (d.complaint_code || d.complaintCode || '').toLowerCase().includes(term);
+      const authMatch = getDecisionAuthority(d).toLowerCase().includes(term);
+      const deptMatch = getDecisionDepartment(d).toLowerCase().includes(term);
+      const jurMatch = getDecisionJurisdiction(d).toLowerCase().includes(term);
+      const catMatch = (d.category || '').toLowerCase().includes(term);
+      const verMatch = getDecisionVersion(d).toLowerCase().includes(term);
+      return codeMatch || authMatch || deptMatch || jurMatch || catMatch || verMatch;
     }
     return true;
   });
 
   const totalDecisions = decisions.length;
-  const routedCount = decisions.filter((d) => d.routing_status === 'ROUTED').length;
-  const reviewCount = decisions.filter((d) => d.routing_status === 'HUMAN_REVIEW').length;
+  const routedCount = decisions.filter((d) => (d.routing_status || d.routingStatus) === 'ROUTED').length;
+  const reviewCount = decisions.filter((d) => {
+    const s = d.routing_status || d.routingStatus;
+    return s === 'HUMAN_REVIEW' || s === 'UNROUTABLE';
+  }).length;
 
   return (
     <div className="space-y-6">
@@ -201,7 +214,17 @@ export default function RoutingView() {
             </div>
           ) : (
             filteredDecisions.map((d) => {
-              const isRouted = d.routing_status === 'ROUTED';
+              const status = d.routing_status || d.routingStatus || 'PENDING';
+              const isRouted = status === 'ROUTED';
+              const complaintCode = d.complaint_code || d.complaintCode || 'N/A';
+              const category = d.category || 'N/A';
+              const authorityName = getDecisionAuthority(d);
+              const departmentName = getDecisionDepartment(d);
+              const jurisdictionName = getDecisionJurisdiction(d);
+              const versionCode = getDecisionVersion(d);
+              const reasonText = getDecisionReason(d);
+              const formattedDate = getDecisionTimestamp(d);
+
               return (
                 <div
                   key={d.id}
@@ -210,10 +233,10 @@ export default function RoutingView() {
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <div className="flex items-center gap-2">
                       <span className="font-mono text-xs font-bold text-cyan-400">
-                        {d.complaint_code}
+                        {complaintCode}
                       </span>
                       <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-slate-800 text-slate-300 border border-slate-700">
-                        {d.category}
+                        {category}
                       </span>
                       <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase border flex items-center gap-1 ${
                         isRouted
@@ -221,14 +244,14 @@ export default function RoutingView() {
                           : 'bg-amber-950 text-amber-400 border-amber-500/30'
                       }`}>
                         {isRouted ? <CheckCircle2 className="w-3 h-3" /> : <AlertTriangle className="w-3 h-3" />}
-                        {d.routing_status}
+                        {status}
                       </span>
                     </div>
 
                     <div className="flex items-center gap-2">
                       <span className="text-[10px] font-mono text-slate-500 flex items-center gap-1">
                         <Clock className="w-3 h-3" />
-                        {new Date(d.routed_at).toLocaleString()}
+                        {formattedDate}
                       </span>
                       <button
                         onClick={() => setSelectedDecision(d)}
@@ -245,28 +268,28 @@ export default function RoutingView() {
                     <div className="p-2 bg-slate-900/60 rounded border border-slate-800/60">
                       <span className="text-[10px] text-slate-500 block">Authority</span>
                       <span className="font-semibold text-slate-200">
-                        {d.authority_name || 'None (Outside Boundaries)'}
+                        {authorityName}
                       </span>
                     </div>
 
                     <div className="p-2 bg-slate-900/60 rounded border border-slate-800/60">
                       <span className="text-[10px] text-slate-500 block">Department</span>
                       <span className="font-semibold text-slate-200">
-                        {d.department_name || 'Human Review Queue'}
+                        {departmentName}
                       </span>
                     </div>
 
                     <div className="p-2 bg-slate-900/60 rounded border border-slate-800/60">
                       <span className="text-[10px] text-slate-500 block">Jurisdiction Zone</span>
                       <span className="text-slate-300">
-                        {d.jurisdiction_name || 'None'}
+                        {jurisdictionName}
                       </span>
                     </div>
 
                     <div className="p-2 bg-slate-900/60 rounded border border-slate-800/60">
                       <span className="text-[10px] text-slate-500 block">Jurisdiction Version</span>
                       <span className="font-mono text-cyan-300">
-                        {d.version_code || 'N/A'}
+                        {versionCode}
                       </span>
                     </div>
                   </div>
@@ -274,7 +297,7 @@ export default function RoutingView() {
                   {/* Dynamic Explanation Quote */}
                   <div className="p-2.5 bg-slate-900/90 rounded-lg border border-slate-800/80 text-xs font-mono text-slate-300 leading-relaxed">
                     <span className="text-[10px] text-slate-500 block uppercase mb-0.5">Spatial Reason:</span>
-                    "{d.routing_reason}"
+                    "{reasonText}"
                   </div>
                 </div>
               );

@@ -337,36 +337,65 @@ const routeComplaint = async (complaintIdOrCode) => {
  */
 function formatRoutingDecision(row, complaint = null) {
   if (!row) return null;
+
+  const authority = row.authority_id ? {
+    id: row.authority_id,
+    name: row.authority_name,
+    code: row.authority_code
+  } : null;
+
+  const department = row.department_id ? {
+    id: row.department_id,
+    name: row.department_name,
+    code: row.department_code
+  } : null;
+
+  const jurisdiction = row.jurisdiction_id ? {
+    id: row.jurisdiction_id,
+    name: row.jurisdiction_name,
+    code: row.jurisdiction_code
+  } : null;
+
+  const jurisdictionVersion = row.version_id ? {
+    id: row.version_id,
+    code: row.version_code,
+    number: row.version_number
+  } : null;
+
+  const finalComplaintCode = complaint ? complaint.complaint_code : row.complaint_code;
+  const finalCategory = complaint ? complaint.category : row.category;
+  const routedAt = row.matched_at || row.created_at || null;
+
   return {
     id: row.id,
     complaintId: row.complaint_id,
-    complaintCode: complaint ? complaint.complaint_code : row.complaint_code,
-    category: complaint ? complaint.category : row.category,
+    complaint_id: row.complaint_id,
+    complaintCode: finalComplaintCode,
+    complaint_code: finalComplaintCode,
+    category: finalCategory,
     routingStatus: row.routing_status,
+    routing_status: row.routing_status,
     routingMethod: row.routing_method,
+    routing_method: row.routing_method,
     reason: row.reason,
+    routing_reason: row.reason,
     matchedAt: row.matched_at,
+    matched_at: row.matched_at,
     createdAt: row.created_at,
-    jurisdictionVersion: {
-      id: row.version_id,
-      code: row.version_code,
-      number: row.version_number
-    },
-    jurisdiction: row.jurisdiction_id ? {
-      id: row.jurisdiction_id,
-      name: row.jurisdiction_name,
-      code: row.jurisdiction_code
-    } : null,
-    authority: row.authority_id ? {
-      id: row.authority_id,
-      name: row.authority_name,
-      code: row.authority_code
-    } : null,
-    department: row.department_id ? {
-      id: row.department_id,
-      name: row.department_name,
-      code: row.department_code
-    } : null
+    created_at: row.created_at,
+    routed_at: routedAt,
+    jurisdictionVersion,
+    jurisdiction_version: jurisdictionVersion,
+    version_code: jurisdictionVersion?.code || null,
+    jurisdiction,
+    jurisdiction_name: jurisdiction?.name || null,
+    jurisdiction_code: jurisdiction?.code || null,
+    authority,
+    authority_name: authority?.name || null,
+    authority_code: authority?.code || null,
+    department,
+    department_name: department?.name || null,
+    department_code: department?.code || null
   };
 }
 

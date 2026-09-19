@@ -37,17 +37,21 @@ function AppContent() {
     const healthRes = await checkApiHealth();
     setApiHealth(healthRes);
 
+    if (healthRes.success && healthRes.data?.database) {
+      setDbStatus(healthRes.data.database);
+    } else {
+      setDbStatus({
+        connected: false,
+        message: healthRes.error || 'Database service unreachable',
+        postgisInstalled: false,
+        databaseName: 'adaptive_civic_routing'
+      });
+    }
+
     if (isOperator || isAdmin) {
       const dbRes = await getDatabaseSystemStatus();
       if (dbRes.success && dbRes.data?.database) {
         setDbStatus(dbRes.data.database);
-      } else {
-        setDbStatus({
-          connected: false,
-          message: dbRes.error || 'Database offline',
-          postgisInstalled: false,
-          databaseName: 'adaptive_civic_routing'
-        });
       }
     }
     setLoading(false);
@@ -55,7 +59,9 @@ function AppContent() {
 
   useEffect(() => {
     fetchSystemStatus();
+  }, [isOperator, isAdmin]);
 
+  useEffect(() => {
     const handleConnect = () => setSocketConnected(true);
     const handleDisconnect = () => {
       setSocketConnected(false);

@@ -1,11 +1,31 @@
 import React from 'react';
 import { X, CheckCircle2, AlertTriangle, Building2, Layers, Compass, FileText, Cpu, Clock, ShieldCheck } from 'lucide-react';
+import {
+  getDecisionAuthority,
+  getDecisionDepartment,
+  getDecisionJurisdiction,
+  getDecisionVersion,
+  getDecisionReason,
+  getDecisionTimestamp,
+  isOutsideBoundaryDecision
+} from '../services/routingDisplay';
 
 export default function RoutingDecisionModal({ decision, complaint, onClose }) {
   if (!decision && !complaint) return null;
 
-  const isRouted = decision?.routing_status === 'ROUTED';
-  const isReview = decision?.routing_status === 'HUMAN_REVIEW';
+  const status = decision?.routing_status || decision?.routingStatus || 'PENDING';
+  const isRouted = status === 'ROUTED';
+  const isReview = status === 'HUMAN_REVIEW' || status === 'UNROUTABLE';
+  const isOutside = isOutsideBoundaryDecision(decision);
+
+  const complaintCode = complaint?.complaint_code || complaint?.complaintCode || decision?.complaint_code || decision?.complaintCode || 'N/A';
+  const authorityName = getDecisionAuthority(decision);
+  const departmentName = getDecisionDepartment(decision);
+  const jurisdictionName = getDecisionJurisdiction(decision);
+  const versionCode = getDecisionVersion(decision);
+  const reasonText = getDecisionReason(decision);
+  const formattedDate = getDecisionTimestamp(decision);
+  const routingMethod = decision?.routing_method || decision?.routingMethod || 'DETERMINISTIC_GIS';
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-in fade-in duration-200">
@@ -22,11 +42,11 @@ export default function RoutingDecisionModal({ decision, complaint, onClose }) {
                 <span className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded-full uppercase border ${
                   isRouted ? 'bg-emerald-950 text-emerald-400 border-emerald-500/40' : 'bg-amber-950 text-amber-400 border-amber-500/40'
                 }`}>
-                  {decision?.routing_status || 'PENDING'}
+                  {status}
                 </span>
               </h2>
               <p className="text-xs text-slate-400 font-mono">
-                Complaint: {complaint?.complaint_code || decision?.complaint_code || 'N/A'}
+                Complaint: {complaintCode}
               </p>
             </div>
           </div>
@@ -49,12 +69,14 @@ export default function RoutingDecisionModal({ decision, complaint, onClose }) {
             <ShieldCheck className="w-5 h-5 shrink-0 mt-0.5" />
             <div className="text-xs space-y-1">
               <span className="font-semibold block text-sm">
-                {isRouted ? 'Deterministically Routed via PostGIS' : 'Human Review Required'}
+                {isRouted ? 'Deterministically Routed via PostGIS' : (isOutside ? 'Outside Boundaries — Human Review Required' : 'Human Review Required')}
               </span>
               <p className="text-slate-300 leading-relaxed">
                 {isRouted 
                   ? 'Spatial containment confirmed by PostgreSQL/PostGIS. Department resolved via active database mapping.' 
-                  : 'Coordinates are outside active municipal boundaries or the category is unmapped. Flagged for civic officer review without inventing jurisdiction.'}
+                  : (isOutside
+                    ? 'Coordinates are outside active municipal boundaries. Flagged for civic officer review without inventing jurisdiction.'
+                    : 'Complaint location requires operator review (e.g. unmapped category or manual policy review).')}
               </p>
             </div>
           </div>
@@ -67,10 +89,10 @@ export default function RoutingDecisionModal({ decision, complaint, onClose }) {
                 Responsible Authority
               </span>
               <p className="font-bold text-slate-100 text-sm">
-                {decision?.authority_name || 'None (Outside Jurisdiction)'}
+                {authorityName}
               </p>
-              {decision?.authority_code && (
-                <span className="text-[10px] font-mono text-slate-500">{decision.authority_code}</span>
+              {(decision?.authority?.code || decision?.authority_code) && (
+                <span className="text-[10px] font-mono text-slate-500">{decision?.authority?.code || decision?.authority_code}</span>
               )}
             </div>
 
@@ -80,10 +102,10 @@ export default function RoutingDecisionModal({ decision, complaint, onClose }) {
                 Assigned Department
               </span>
               <p className="font-bold text-slate-100 text-sm">
-                {decision?.department_name || 'Human Review Queue'}
+                {departmentName}
               </p>
-              {decision?.department_code && (
-                <span className="text-[10px] font-mono text-slate-500">{decision.department_code}</span>
+              {(decision?.department?.code || decision?.department_code) && (
+                <span className="text-[10px] font-mono text-slate-500">{decision?.department?.code || decision?.department_code}</span>
               )}
             </div>
 
@@ -93,10 +115,10 @@ export default function RoutingDecisionModal({ decision, complaint, onClose }) {
                 Covering Jurisdiction
               </span>
               <p className="font-medium text-slate-200">
-                {decision?.jurisdiction_name || 'None'}
+                {jurisdictionName}
               </p>
-              {decision?.jurisdiction_code && (
-                <span className="text-[10px] font-mono text-slate-500">{decision.jurisdiction_code}</span>
+              {(decision?.jurisdiction?.code || decision?.jurisdiction_code) && (
+                <span className="text-[10px] font-mono text-slate-500">{decision?.jurisdiction?.code || decision?.jurisdiction_code}</span>
               )}
             </div>
 
@@ -106,7 +128,7 @@ export default function RoutingDecisionModal({ decision, complaint, onClose }) {
                 Jurisdiction Version
               </span>
               <p className="font-mono font-semibold text-slate-200">
-                {decision?.version_code || 'Active Version'}
+                {versionCode}
               </p>
               <span className="text-[10px] text-slate-500 block">Immutable Record Binding</span>
             </div>
@@ -119,18 +141,18 @@ export default function RoutingDecisionModal({ decision, complaint, onClose }) {
               Dynamic Explainable Routing Reason
             </span>
             <div className="p-3.5 bg-slate-950 rounded-xl border border-slate-800 text-xs text-slate-200 font-mono leading-relaxed">
-              "{decision?.routing_reason || 'No routing reason recorded.'}"
+              "{reasonText}"
             </div>
           </div>
 
           {/* Metadata Footer */}
           <div className="flex flex-wrap items-center justify-between text-[11px] text-slate-500 font-mono border-t border-slate-800 pt-3">
             <span className="flex items-center gap-1">
-              Method: <strong className="text-slate-300">{decision?.routing_method || 'DETERMINISTIC_GIS'}</strong>
+              Method: <strong className="text-slate-300">{routingMethod}</strong>
             </span>
             <span className="flex items-center gap-1">
               <Clock className="w-3 h-3" />
-              {decision?.routed_at ? new Date(decision.routed_at).toLocaleString() : 'N/A'}
+              {formattedDate}
             </span>
           </div>
         </div>
