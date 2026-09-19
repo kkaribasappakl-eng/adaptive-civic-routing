@@ -2,15 +2,45 @@ const http = require('http');
 const { pool } = require('../config/db');
 const { io: ClientIO } = require('../../../client/node_modules/socket.io-client');
 
-function sendRequest(urlPath, method = 'GET', body = null) {
-  return new Promise((resolve, reject) => {
+let operatorToken = null;
+let adminToken = null;
+
+const getOperatorToken = async () => {
+  if (operatorToken) return operatorToken;
+  try {
+    const res = await sendRequest('/api/auth/demo-login', 'POST', { role: 'OPERATOR' }, null);
+    if (res.body?.data?.token || res.body?.token) {
+      operatorToken = res.body?.data?.token || res.body?.token;
+    }
+  } catch (e) {}
+  return operatorToken;
+};
+
+const getAdminToken = async () => {
+  if (adminToken) return adminToken;
+  try {
+    const res = await sendRequest('/api/auth/demo-login', 'POST', { role: 'ADMIN' }, null);
+    if (res.body?.data?.token || res.body?.token) {
+      adminToken = res.body?.data?.token || res.body?.token;
+    }
+  } catch (e) {}
+  return adminToken;
+};
+
+function sendRequest(urlPath, method = 'GET', body = null, explicitToken = undefined) {
+  return new Promise(async (resolve, reject) => {
+    let token = explicitToken;
+    if (token === undefined) {
+      token = await getOperatorToken();
+    }
     const options = {
       hostname: 'localhost',
       port: 4000,
       path: urlPath,
       method: method,
       headers: {
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {})
       }
     };
 
@@ -97,10 +127,14 @@ async function runStage5Tests() {
     }
   }
 
+  const opToken = await getOperatorToken();
+  const admToken = await getAdminToken();
+
   // Setup Socket.IO client for broadcast testing
   const socketClient = ClientIO('http://localhost:4000', {
     transports: ['websocket'],
-    reconnection: false
+    reconnection: false,
+    auth: { token: opToken }
   });
 
   const completedEvents = [];
@@ -119,7 +153,7 @@ async function runStage5Tests() {
     console.log('--- Initializing Baseline State (V1 ACTIVE) ---');
     await pool.query("UPDATE jurisdiction_versions SET status = 'DRAFT' WHERE version_code = 'MYS_2026_V2'");
     await pool.query("UPDATE jurisdiction_versions SET status = 'ACTIVE' WHERE version_code = 'MYS_2026_V1'");
-    await sendRequest('/api/jurisdictions/demo-v2-setup', 'POST');
+    await sendRequest('/api/jurisdictions/demo-v2-setup', 'POST', null, admToken);
 
     // 1. Database migration check
     const health = await sendRequest('/api/health');
@@ -310,7 +344,7 @@ async function runStage5Tests() {
     // 17. Activate V2
     const activateRes = await sendRequest('/api/jurisdictions/versions/MYS_2026_V2/activate', 'POST', {
       operator: 'civic_commissioner_admin'
-    });
+    }, admToken);
     assert(
       activateRes.status === 200 &&
       activateRes.body.success === true &&

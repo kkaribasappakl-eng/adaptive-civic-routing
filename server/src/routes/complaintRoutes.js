@@ -27,8 +27,8 @@ router.get('/check-duplicate', checkDuplicate);
 // Submit new complaint route (Public intake with optional authentication)
 router.post('/', optionalAuth, handlePhotoUpload('photo'), submitComplaint);
 
-// List complaints across the system (Restricted to OPERATOR and ADMIN)
-router.get('/', requireAuth, requireRole('OPERATOR', 'ADMIN'), listComplaints);
+// List complaints across the system (Public safe view with optionalAuth, full for OPERATOR/ADMIN)
+router.get('/', optionalAuth, listComplaints);
 
 // Single complaint by ID or code (Public citizen tracking with optionalAuth)
 router.get('/:id', optionalAuth, getComplaintLifecycleHandler);

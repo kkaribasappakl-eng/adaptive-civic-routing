@@ -17,10 +17,12 @@ import {
 } from 'lucide-react';
 import { fetchRecentComplaints, routeComplaint, getComplaintRouting } from '../services/api';
 import socket from '../services/socket';
+import { useAuth } from '../context/AuthContext';
 import RoutingDecisionModal from './RoutingDecisionModal';
 import CaseTrackerModal from './CaseTrackerModal';
 
 export default function ComplaintFeed({ newComplaint }) {
+  const { isOperator } = useAuth();
   const [complaints, setComplaints] = useState([]);
   const [loading, setLoading] = useState(false);
   const [filterCategory, setFilterCategory] = useState('');
@@ -30,6 +32,7 @@ export default function ComplaintFeed({ newComplaint }) {
   const [selectedComplaint, setSelectedComplaint] = useState(null);
   const [loadingDecision, setLoadingDecision] = useState(false);
   const [trackingComplaintId, setTrackingComplaintId] = useState(null);
+  const [feedError, setFeedError] = useState(null);
 
   const loadComplaints = async () => {
     setLoading(true);
@@ -157,8 +160,9 @@ export default function ComplaintFeed({ newComplaint }) {
       );
       setSelectedComplaint(complaint);
       setSelectedDecision(res.data);
+      setFeedError(null);
     } else {
-      alert(`Routing error: ${res.error}`);
+      setFeedError(`Routing error: ${res.error || 'Failed to route complaint'}`);
     }
   };
 
@@ -169,8 +173,9 @@ export default function ComplaintFeed({ newComplaint }) {
     setLoadingDecision(false);
     if (res.success && res.data) {
       setSelectedDecision(res.data);
+      setFeedError(null);
     } else {
-      alert(`Could not retrieve routing decision: ${res.error || 'None exists'}`);
+      setFeedError(`Could not retrieve routing decision: ${res.error || 'None exists'}`);
     }
   };
 
@@ -201,6 +206,22 @@ export default function ComplaintFeed({ newComplaint }) {
           <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
         </button>
       </div>
+
+      {/* Dismissible Error Banner */}
+      {feedError && (
+        <div className="p-2.5 rounded-lg bg-rose-950/50 border border-rose-500/40 text-rose-300 text-xs flex items-center justify-between gap-2 animate-in fade-in">
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4 shrink-0 text-rose-400" />
+            <span>{feedError}</span>
+          </div>
+          <button
+            onClick={() => setFeedError(null)}
+            className="text-rose-400 hover:text-white p-0.5"
+          >
+            &times;
+          </button>
+        </div>
+      )}
 
       {/* Feed List */}
       <div className="space-y-2.5 max-h-[520px] overflow-y-auto pr-1">
@@ -283,14 +304,20 @@ export default function ComplaintFeed({ newComplaint }) {
 
                   <div className="flex items-center gap-1.5">
                     {isReceived ? (
-                      <button
-                        onClick={() => handleRouteClick(item)}
-                        disabled={isBusy}
-                        className="px-2.5 py-1 bg-civic-600 hover:bg-civic-500 disabled:opacity-50 text-white rounded text-[10px] font-semibold flex items-center gap-1 transition shadow-sm"
-                      >
-                        <Zap className={`w-3 h-3 ${isBusy ? 'animate-spin' : 'text-amber-300'}`} />
-                        {isBusy ? 'Routing...' : 'Route Complaint'}
-                      </button>
+                      isOperator ? (
+                        <button
+                          onClick={() => handleRouteClick(item)}
+                          disabled={isBusy}
+                          className="px-2.5 py-1 bg-civic-600 hover:bg-civic-500 disabled:opacity-50 text-white rounded text-[10px] font-semibold flex items-center gap-1 transition shadow-sm"
+                        >
+                          <Zap className={`w-3 h-3 ${isBusy ? 'animate-spin' : 'text-amber-300'}`} />
+                          {isBusy ? 'Routing...' : 'Route Complaint'}
+                        </button>
+                      ) : (
+                        <span className="px-2 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700 text-[10px] font-mono">
+                          Awaiting Operator Routing
+                        </span>
+                      )
                     ) : (
                       <button
                         onClick={() => handleViewDecision(item)}

@@ -6,8 +6,37 @@ const path = require('path');
 
 const BASE_URL = 'http://localhost:4000';
 
-function sendJsonRequest(path, method = 'GET', data = null) {
-  return new Promise((resolve, reject) => {
+let operatorToken = null;
+let adminToken = null;
+
+const getOperatorToken = async () => {
+  if (operatorToken) return operatorToken;
+  try {
+    const res = await sendJsonRequest('/api/auth/demo-login', 'POST', { role: 'OPERATOR' }, null);
+    if (res.body?.data?.token || res.body?.token) {
+      operatorToken = res.body?.data?.token || res.body?.token;
+    }
+  } catch (e) {}
+  return operatorToken;
+};
+
+const getAdminToken = async () => {
+  if (adminToken) return adminToken;
+  try {
+    const res = await sendJsonRequest('/api/auth/demo-login', 'POST', { role: 'ADMIN' }, null);
+    if (res.body?.data?.token || res.body?.token) {
+      adminToken = res.body?.data?.token || res.body?.token;
+    }
+  } catch (e) {}
+  return adminToken;
+};
+
+function sendJsonRequest(path, method = 'GET', data = null, explicitToken = undefined) {
+  return new Promise(async (resolve, reject) => {
+    let token = explicitToken;
+    if (token === undefined) {
+      token = await getOperatorToken();
+    }
     const url = new URL(path, BASE_URL);
     const body = data ? JSON.stringify(data) : null;
     const req = http.request(
@@ -18,7 +47,8 @@ function sendJsonRequest(path, method = 'GET', data = null) {
         method,
         headers: {
           'Content-Type': 'application/json',
-          ...(body ? { 'Content-Length': Buffer.byteLength(body) } : {})
+          ...(body ? { 'Content-Length': Buffer.byteLength(body) } : {}),
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {})
         }
       },
       (res) => {
@@ -125,13 +155,13 @@ async function runStage6Tests() {
     console.log('--- Initializing Baseline State (V1 ACTIVE) ---');
     await pool.query("UPDATE jurisdiction_versions SET status = 'DRAFT' WHERE version_code = 'MYS_2026_V2'");
     await pool.query("UPDATE jurisdiction_versions SET status = 'ACTIVE' WHERE version_code = 'MYS_2026_V1'");
-    await sendJsonRequest('/api/jurisdictions/demo-v2-setup', 'POST');
+    await sendJsonRequest('/api/jurisdictions/demo-v2-setup', 'POST', null, await getAdminToken());
 
     // 1. Database Migration check
     const health = await sendJsonRequest('/api/health');
     assert(
-      health.status === 200 && health.body.stage === 6,
-      '1. Migration 006 Executes: Backend reporting Stage 6',
+      health.status === 200 && health.body.stage >= 6,
+      '1. Migration 006 Executes: Backend reporting Stage 6+',
       `Stage: ${health.body.stage}`
     );
 

@@ -52,9 +52,24 @@ const submitComplaint = async (req, res, next) => {
       console.warn('[Audit Warning] Complaint creation audit failed:', auditErr.message);
     }
 
+    const isPrivileged = req.user && ['OPERATOR', 'ADMIN'].includes(req.user.role);
+    const safeComplaint = isPrivileged ? result.complaint : {
+      id: result.complaint.id,
+      complaint_code: result.complaint.complaint_code,
+      description: result.complaint.description,
+      category: result.complaint.category,
+      category_source: result.complaint.category_source,
+      category_confidence: result.complaint.category_confidence,
+      photo_url: result.complaint.photo_url,
+      latitude: result.complaint.latitude,
+      longitude: result.complaint.longitude,
+      status: result.complaint.status,
+      created_at: result.complaint.created_at
+    };
+
     res.status(201).json({
       success: true,
-      data: result.complaint,
+      data: safeComplaint,
       duplicateWarning: result.duplicateWarning,
       message: `Complaint ${result.complaint.complaint_code} submitted successfully.`
     });
@@ -78,9 +93,30 @@ const listComplaints = async (req, res, next) => {
   try {
     const { limit, offset, category } = req.query;
     const result = await complaintService.listComplaints(limit, offset, category);
+    
+    const isPrivileged = req.user && ['OPERATOR', 'ADMIN'].includes(req.user.role);
+    const complaints = isPrivileged
+      ? result.complaints
+      : result.complaints.map(c => ({
+          id: c.id,
+          complaint_code: c.complaint_code,
+          description: c.description,
+          category: c.category,
+          category_source: c.category_source,
+          category_confidence: c.category_confidence,
+          photo_url: c.photo_url,
+          latitude: c.latitude,
+          longitude: c.longitude,
+          status: c.status,
+          routed_at: c.routed_at,
+          sla_status: c.sla_status,
+          created_at: c.created_at,
+          geojson: c.geojson
+        }));
+
     res.status(200).json({
       success: true,
-      data: result.complaints,
+      data: complaints,
       total: result.total
     });
   } catch (error) {

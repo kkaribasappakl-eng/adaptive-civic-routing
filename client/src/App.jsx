@@ -33,20 +33,21 @@ function AppContent() {
 
   const fetchSystemStatus = async () => {
     setLoading(true);
-    const [healthRes, dbRes] = await Promise.all([
-      checkApiHealth(),
-      getDatabaseSystemStatus()
-    ]);
+    const healthRes = await checkApiHealth();
     setApiHealth(healthRes);
-    if (dbRes.success && dbRes.data?.database) {
-      setDbStatus(dbRes.data.database);
-    } else {
-      setDbStatus({
-        connected: false,
-        message: dbRes.error || 'Database offline',
-        postgisInstalled: false,
-        databaseName: 'adaptive_civic_routing'
-      });
+
+    if (isOperator || isAdmin) {
+      const dbRes = await getDatabaseSystemStatus();
+      if (dbRes.success && dbRes.data?.database) {
+        setDbStatus(dbRes.data.database);
+      } else {
+        setDbStatus({
+          connected: false,
+          message: dbRes.error || 'Database offline',
+          postgisInstalled: false,
+          databaseName: 'adaptive_civic_routing'
+        });
+      }
     }
     setLoading(false);
   };
@@ -114,7 +115,10 @@ function AppContent() {
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
             {/* Citizen Reporting Form */}
             <div className="lg:col-span-7">
-              <ComplaintForm onComplaintSubmitted={(c) => setRecentlySubmitted(c)} />
+              <ComplaintForm 
+                onComplaintSubmitted={(c) => setRecentlySubmitted(c)} 
+                onTrackComplaint={(id) => setTrackingComplaintId(id)}
+              />
             </div>
 
             {/* Live Feed & Architecture Constraints */}
@@ -124,7 +128,7 @@ function AppContent() {
               <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-xl">
                 <h3 className="text-sm font-semibold text-white flex items-center gap-2 mb-3">
                   <ShieldCheck className="w-4 h-4 text-emerald-400" />
-                  Stage 12 RBAC & Routing Guarantees
+                  Stage 14 RBAC & Routing Guarantees
                 </h3>
                 <ul className="space-y-2 text-xs text-slate-300">
                   <li className="flex items-start gap-2">
@@ -155,7 +159,15 @@ function AppContent() {
           /* =================================================== */
           /* STAGE 5 — DETERMINISTIC CIVIC ROUTING ENGINE        */
           /* =================================================== */
-          <RoutingView />
+          isOperator ? (
+            <RoutingView />
+          ) : (
+            <AccessGuard 
+              requiredRole="OPERATOR" 
+              tabTitle="Deterministic Civic Routing Engine" 
+              onBackToPublic={() => setActiveTab('complaints')} 
+            />
+          )
         ) : activeTab === 'review' ? (
           /* =================================================== */
           /* STAGE 9 & 12 — OPERATOR REVIEW & HUMAN-IN-THE-LOOP  */
@@ -248,7 +260,7 @@ function AppContent() {
 
       {/* Civic Footer */}
       <footer className="border-t border-slate-900 bg-slate-950/80 px-6 py-4 text-center text-xs text-slate-500">
-        Adaptive Civic Routing Intelligence System • HackMysuru Sub-Problem: Routing • Stage 13: Immutable Audit Trail & Security Event Auditing
+        Adaptive Civic Routing Intelligence System • HackMysuru Sub-Problem: Routing • Stage 14: Production-Quality Civic Workflow Completion
       </footer>
     </div>
   );

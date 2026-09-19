@@ -31,8 +31,10 @@ import {
   testGisCoordinates
 } from '../services/api';
 import socket from '../services/socket';
+import { useAuth } from '../context/AuthContext';
 
 export default function VersionManager({ onVersionChange, onCoordinateSelect }) {
+  const { isAdmin } = useAuth();
   const [versions, setVersions] = useState([]);
   const [activeVersion, setActiveVersion] = useState(null);
   const [auditLogs, setAuditLogs] = useState([]);
@@ -246,13 +248,20 @@ export default function VersionManager({ onVersionChange, onCoordinateSelect }) 
         </div>
 
         <div className="flex items-center gap-2">
-          <button
-            onClick={() => setShowCreateModal(true)}
-            className="px-3 py-1.5 rounded-lg bg-civic-600 hover:bg-civic-500 text-white text-xs font-semibold shadow-sm transition flex items-center gap-1.5"
-          >
-            <PlusCircle className="w-4 h-4" />
-            Create Custom Draft
-          </button>
+          {isAdmin ? (
+            <button
+              onClick={() => setShowCreateModal(true)}
+              className="px-3 py-1.5 rounded-lg bg-civic-600 hover:bg-civic-500 text-white text-xs font-semibold shadow-sm transition flex items-center gap-1.5"
+            >
+              <PlusCircle className="w-4 h-4" />
+              Create Custom Draft
+            </button>
+          ) : (
+            <span className="px-2.5 py-1 rounded bg-slate-800/80 text-slate-400 border border-slate-700 text-[10px] font-mono flex items-center gap-1">
+              <Shield className="w-3 h-3 text-slate-400" />
+              Admin Draft Creation
+            </span>
+          )}
           <button
             onClick={loadData}
             disabled={loading}
@@ -372,7 +381,7 @@ export default function VersionManager({ onVersionChange, onCoordinateSelect }) 
                     Validate PostGIS
                   </button>
 
-                  {isDraft && (
+                  {isDraft && isAdmin && (
                     <button
                       onClick={() => openActivationModal(ver)}
                       disabled={loading || ver.validation_status === 'INVALID'}
@@ -391,23 +400,32 @@ export default function VersionManager({ onVersionChange, onCoordinateSelect }) 
 
       {/* Interactive Workflow Control Bar */}
       <div className="bg-slate-950/70 border border-slate-800 rounded-xl p-4 space-y-3">
-        <h3 className="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-1.5">
-          <Sparkles className="w-3.5 h-3.5 text-civic-400" />
-          Interactive Delimitation Workflow (Demo Simulation)
-        </h3>
+        <div className="flex items-center justify-between">
+          <h3 className="text-xs font-bold uppercase tracking-wider text-slate-300 flex items-center gap-1.5">
+            <Sparkles className="w-3.5 h-3.5 text-civic-400" />
+            Interactive Delimitation Workflow (Demo Simulation)
+          </h3>
+          {!isAdmin && (
+            <span className="text-[10px] text-amber-400/90 font-mono bg-amber-950/50 px-2 py-0.5 rounded border border-amber-500/30">
+              🔒 Admin Role Required for Boundary Mutation
+            </span>
+          )}
+        </div>
 
         <div className="flex flex-wrap items-center gap-2.5">
-          {/* 1. Setup V2 */}
-          <button
-            onClick={handleSetupV2}
-            disabled={loading}
-            className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-medium text-slate-200 transition flex items-center gap-1.5 disabled:opacity-50"
-          >
-            <GitBranch className="w-3.5 h-3.5 text-amber-400" />
-            1. Prepare Proposed V2 (DRAFT)
-          </button>
+          {/* 1. Setup V2 (Admin only) */}
+          {isAdmin && (
+            <button
+              onClick={handleSetupV2}
+              disabled={loading}
+              className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-medium text-slate-200 transition flex items-center gap-1.5 disabled:opacity-50"
+            >
+              <GitBranch className="w-3.5 h-3.5 text-amber-400" />
+              1. Prepare Proposed V2 (DRAFT)
+            </button>
+          )}
 
-          {/* 2. Preview Coordinate X */}
+          {/* 2. Preview Coordinate X (All Operators) */}
           <button
             onClick={handlePreviewCoordX}
             disabled={loading}
@@ -417,7 +435,7 @@ export default function VersionManager({ onVersionChange, onCoordinateSelect }) 
             2. Preview Coordinate X Routing
           </button>
 
-          {/* 3. Compare V1 vs V2 */}
+          {/* 3. Compare V1 vs V2 (All Operators) */}
           <button
             onClick={handleCompare}
             disabled={loading}
@@ -427,18 +445,20 @@ export default function VersionManager({ onVersionChange, onCoordinateSelect }) 
             3. Compare Boundaries (Diff)
           </button>
 
-          {/* 4. Safe Activation */}
-          <button
-            onClick={() => {
-              const v2 = versions.find(v => v.version_code === 'MYS_2026_V2');
-              if (v2) openActivationModal(v2);
-            }}
-            disabled={loading || activeVersion?.version_code === 'MYS_2026_V2'}
-            className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold shadow-lg shadow-emerald-950/40 transition flex items-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed"
-          >
-            <Zap className="w-3.5 h-3.5 text-white" />
-            4. Atomically Activate MYS_2026_V2
-          </button>
+          {/* 4. Safe Activation (Admin only) */}
+          {isAdmin && (
+            <button
+              onClick={() => {
+                const v2 = versions.find(v => v.version_code === 'MYS_2026_V2');
+                if (v2) openActivationModal(v2);
+              }}
+              disabled={loading || activeVersion?.version_code === 'MYS_2026_V2'}
+              className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold shadow-lg shadow-emerald-950/40 transition flex items-center gap-1.5 disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              <Zap className="w-3.5 h-3.5 text-white" />
+              4. Atomically Activate MYS_2026_V2
+            </button>
+          )}
         </div>
       </div>
 

@@ -15,7 +15,8 @@ import {
   Info,
   Check,
   ShieldAlert,
-  HelpCircle
+  HelpCircle,
+  Clock
 } from 'lucide-react';
 import {
   classifyComplaintIssue,
@@ -44,7 +45,7 @@ function PinLocationHandler({ onLocationChange }) {
   return null;
 }
 
-export default function ComplaintForm({ onComplaintSubmitted }) {
+export default function ComplaintForm({ onComplaintSubmitted, onTrackComplaint }) {
   // Form State
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState('');
@@ -301,22 +302,32 @@ export default function ComplaintForm({ onComplaintSubmitted }) {
           </div>
         </div>
 
-        {/* Stage 4 architectural boundary reminder */}
+        {/* Stage 14 Production notice */}
         <div className="bg-slate-950/50 border border-slate-800/70 rounded-lg p-3 text-[11px] text-slate-400 flex items-start gap-2">
-          <Info className="w-4 h-4 text-civic-400 shrink-0 mt-0.5" />
+          <Info className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
           <p className="leading-relaxed">
-            <strong>Stage 4 Notice:</strong> Complaint is securely persisted in PostgreSQL.
-            Final jurisdiction, authority, and department routing will be executed deterministically in Stage 5.
+            <strong>Civic Tracking Active:</strong> Complaint is permanently registered in PostgreSQL.
+            You can track this case live, view its PostGIS spatial routing, SLA milestones, and real-time status updates.
           </p>
         </div>
 
-        <button
-          onClick={handleResetForm}
-          className="w-full py-2.5 rounded-lg bg-civic-600 hover:bg-civic-500 text-white text-xs font-bold transition flex items-center justify-center gap-2"
-        >
-          <RefreshCw className="w-3.5 h-3.5" />
-          Submit Another Civic Complaint
-        </button>
+        <div className="space-y-2">
+          <button
+            onClick={() => onTrackComplaint && onTrackComplaint(c.id || c.complaint_code)}
+            className="w-full py-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition flex items-center justify-center gap-2 shadow-lg shadow-emerald-950/40"
+          >
+            <Clock className="w-4 h-4" />
+            Track Case in Real Time
+          </button>
+
+          <button
+            onClick={handleResetForm}
+            className="w-full py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold transition flex items-center justify-center gap-2"
+          >
+            <RefreshCw className="w-3.5 h-3.5" />
+            Submit Another Civic Complaint
+          </button>
+        </div>
       </div>
     );
   }

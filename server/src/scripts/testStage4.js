@@ -58,7 +58,7 @@ function sendMultipartRequest(urlPath, fields = {}, fileObj = null) {
   });
 }
 
-function sendJsonRequest(urlPath, method = 'GET', body = null) {
+function sendJsonRequest(urlPath, method = 'GET', body = null, token = null) {
   return new Promise((resolve, reject) => {
     const options = {
       hostname: 'localhost',
@@ -66,7 +66,8 @@ function sendJsonRequest(urlPath, method = 'GET', body = null) {
       path: urlPath,
       method: method,
       headers: {
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {})
       }
     };
 
@@ -405,7 +406,9 @@ async function runStage4Tests() {
     );
 
     // 21. Regression: Stage 3 Jurisdiction Versioning Still Works
-    const verRes = await sendJsonRequest('/api/jurisdictions/versions');
+    const opLoginRes = await sendJsonRequest('/api/auth/demo-login', 'POST', { role: 'OPERATOR' });
+    const opToken = opLoginRes.body?.data?.token;
+    const verRes = await sendJsonRequest('/api/jurisdictions/versions', 'GET', null, opToken);
     assert(
       verRes.status === 200 &&
       Array.isArray(verRes.body.data) &&

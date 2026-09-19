@@ -23,6 +23,7 @@ import {
   markAllGlobalNotificationsRead
 } from '../services/api';
 import socket from '../services/socket';
+import { useAuth } from '../context/AuthContext';
 
 const NOTIFICATION_ICONS = {
   COMPLAINT_SUBMITTED: { icon: FileCheck, color: 'text-blue-400', bg: 'bg-blue-950/40 border-blue-800/40' },
@@ -37,6 +38,7 @@ const NOTIFICATION_ICONS = {
 };
 
 export default function NotificationCenter({ onSelectComplaint }) {
+  const { isOperator } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -45,8 +47,13 @@ export default function NotificationCenter({ onSelectComplaint }) {
   const [actionLoading, setActionLoading] = useState(false);
   const dropdownRef = useRef(null);
 
-  // Load notifications and initial unread count
+  // Load notifications and initial unread count (Operator / Admin only)
   const loadNotifications = async () => {
+    if (!isOperator) {
+      setNotifications([]);
+      setUnreadCount(0);
+      return;
+    }
     setLoading(true);
     const [allRes, unreadRes] = await Promise.all([
       getAllNotifications(50, 0, filter === 'UNREAD' ? false : null),
@@ -63,8 +70,13 @@ export default function NotificationCenter({ onSelectComplaint }) {
   };
 
   useEffect(() => {
-    loadNotifications();
-  }, [filter]);
+    if (isOperator) {
+      loadNotifications();
+    } else {
+      setNotifications([]);
+      setUnreadCount(0);
+    }
+  }, [filter, isOperator]);
 
   // Real-time Socket.IO listener for notification:created
   useEffect(() => {

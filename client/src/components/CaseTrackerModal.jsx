@@ -21,7 +21,8 @@ import {
   Zap,
   Bell,
   CheckCheck,
-  Check
+  Check,
+  ShieldCheck
 } from 'lucide-react';
 import StatusTimeline from './StatusTimeline';
 import SlaStatusCard from './SlaStatusCard';
@@ -33,8 +34,10 @@ import {
   markAllComplaintNotificationsRead
 } from '../services/api';
 import socket from '../services/socket';
+import { useAuth } from '../context/AuthContext';
 
 export default function CaseTrackerModal({ complaintId, onClose }) {
+  const { isOperator } = useAuth();
   const [data, setData] = useState(null);
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -341,88 +344,110 @@ export default function CaseTrackerModal({ complaintId, onClose }) {
                 />
               )}
 
-              {/* Status Actions Bar (State Machine Controls) */}
-              <div className="p-4 bg-slate-950 rounded-xl border border-slate-800 space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-semibold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
-                    <Zap className="w-3.5 h-3.5 text-cyan-400" />
-                    Civic Operator Actions (Stage 6 Workflow)
-                  </span>
-                  <span className="text-[10px] text-slate-500 font-mono">Enforces Backend State Machine</span>
+              {/* Status Actions Bar: Operator State Machine Controls OR Citizen Progress Card */}
+              {isOperator ? (
+                <div className="p-4 bg-slate-950 rounded-xl border border-slate-800 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-semibold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+                      <Zap className="w-3.5 h-3.5 text-cyan-400" />
+                      Civic Operator Actions (Stage 6 Workflow)
+                    </span>
+                    <span className="text-[10px] text-slate-500 font-mono">Enforces Backend State Machine</span>
+                  </div>
+
+                  {/* Optional transition reason */}
+                  {!isClosed && (
+                    <input
+                      type="text"
+                      placeholder="Optional transition reason / notes..."
+                      value={actionReason}
+                      onChange={(e) => setActionReason(e.target.value)}
+                      className="w-full px-3 py-1.5 bg-slate-900 border border-slate-800 rounded-lg text-xs text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500 font-mono"
+                    />
+                  )}
+
+                  {/* Action buttons based on current status */}
+                  <div className="flex flex-wrap items-center gap-2">
+                    {isRouted && (
+                      <button
+                        onClick={() => handleStatusTransition('IN_PROGRESS', 'Assigned to field remediation crew')}
+                        disabled={actionInProgress}
+                        className="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white rounded-lg text-xs font-semibold flex items-center gap-1.5 transition shadow-sm"
+                      >
+                        <Hammer className={`w-3.5 h-3.5 ${actionInProgress ? 'animate-spin' : ''}`} />
+                        Start Work (IN_PROGRESS)
+                      </button>
+                    )}
+
+                    {isInProgress && (
+                      <button
+                        onClick={() => handleStatusTransition('RESOLVED', 'Field work completed and verified on-site')}
+                        disabled={actionInProgress}
+                        className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white rounded-lg text-xs font-semibold flex items-center gap-1.5 transition shadow-sm"
+                      >
+                        <Award className={`w-3.5 h-3.5 ${actionInProgress ? 'animate-spin' : ''}`} />
+                        Mark Resolved (RESOLVED)
+                      </button>
+                    )}
+
+                    {isResolved && (
+                      <button
+                        onClick={() => handleStatusTransition('CLOSED', 'Citizen satisfied with remediation. Case closed.')}
+                        disabled={actionInProgress}
+                        className="px-3 py-1.5 bg-slate-700 hover:bg-slate-600 disabled:opacity-50 text-white rounded-lg text-xs font-semibold flex items-center gap-1.5 transition shadow-sm"
+                      >
+                        <Lock className={`w-3.5 h-3.5 ${actionInProgress ? 'animate-spin' : ''}`} />
+                        Close Case (CLOSED)
+                      </button>
+                    )}
+
+                    {isHumanReview && (
+                      <button
+                        onClick={() => handleStatusTransition('TRIAGED', 'Human review officer confirmed categorization')}
+                        disabled={actionInProgress}
+                        className="px-3 py-1.5 bg-amber-600 hover:bg-amber-500 disabled:opacity-50 text-white rounded-lg text-xs font-semibold flex items-center gap-1.5 transition shadow-sm"
+                      >
+                        <Filter className={`w-3.5 h-3.5 ${actionInProgress ? 'animate-spin' : ''}`} />
+                        Move to Triaged (TRIAGED)
+                      </button>
+                    )}
+
+                    {isClosed && (
+                      <div className="text-xs text-slate-400 flex items-center gap-1.5 font-mono">
+                        <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                        This case is officially CLOSED. Terminal lifecycle state reached.
+                      </div>
+                    )}
+
+                    {status === 'SUBMITTED' && (
+                      <div className="text-xs text-slate-400 flex items-center gap-1.5 font-mono">
+                        <Clock className="w-4 h-4 text-civic-400" />
+                        Intake recorded. Trigger routing from feed to proceed to ROUTED.
+                      </div>
+                    )}
+                  </div>
                 </div>
-
-                {/* Optional transition reason */}
-                {!isClosed && (
-                  <input
-                    type="text"
-                    placeholder="Optional transition reason / notes..."
-                    value={actionReason}
-                    onChange={(e) => setActionReason(e.target.value)}
-                    className="w-full px-3 py-1.5 bg-slate-900 border border-slate-800 rounded-lg text-xs text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500 font-mono"
-                  />
-                )}
-
-                {/* Action buttons based on current status */}
-                <div className="flex flex-wrap items-center gap-2">
-                  {isRouted && (
-                    <button
-                      onClick={() => handleStatusTransition('IN_PROGRESS', 'Assigned to field remediation crew')}
-                      disabled={actionInProgress}
-                      className="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white rounded-lg text-xs font-semibold flex items-center gap-1.5 transition shadow-sm"
-                    >
-                      <Hammer className={`w-3.5 h-3.5 ${actionInProgress ? 'animate-spin' : ''}`} />
-                      Start Work (IN_PROGRESS)
-                    </button>
-                  )}
-
-                  {isInProgress && (
-                    <button
-                      onClick={() => handleStatusTransition('RESOLVED', 'Field work completed and verified on-site')}
-                      disabled={actionInProgress}
-                      className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white rounded-lg text-xs font-semibold flex items-center gap-1.5 transition shadow-sm"
-                    >
-                      <Award className={`w-3.5 h-3.5 ${actionInProgress ? 'animate-spin' : ''}`} />
-                      Mark Resolved (RESOLVED)
-                    </button>
-                  )}
-
-                  {isResolved && (
-                    <button
-                      onClick={() => handleStatusTransition('CLOSED', 'Citizen satisfied with remediation. Case closed.')}
-                      disabled={actionInProgress}
-                      className="px-3 py-1.5 bg-slate-700 hover:bg-slate-600 disabled:opacity-50 text-white rounded-lg text-xs font-semibold flex items-center gap-1.5 transition shadow-sm"
-                    >
-                      <Lock className={`w-3.5 h-3.5 ${actionInProgress ? 'animate-spin' : ''}`} />
-                      Close Case (CLOSED)
-                    </button>
-                  )}
-
-                  {isHumanReview && (
-                    <button
-                      onClick={() => handleStatusTransition('TRIAGED', 'Human review officer confirmed categorization')}
-                      disabled={actionInProgress}
-                      className="px-3 py-1.5 bg-amber-600 hover:bg-amber-500 disabled:opacity-50 text-white rounded-lg text-xs font-semibold flex items-center gap-1.5 transition shadow-sm"
-                    >
-                      <Filter className={`w-3.5 h-3.5 ${actionInProgress ? 'animate-spin' : ''}`} />
-                      Move to Triaged (TRIAGED)
-                    </button>
-                  )}
-
-                  {isClosed && (
-                    <div className="text-xs text-slate-400 flex items-center gap-1.5 font-mono">
-                      <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                      This case is officially CLOSED. Terminal lifecycle state reached.
-                    </div>
-                  )}
-
-                  {status === 'SUBMITTED' && (
-                    <div className="text-xs text-slate-400 flex items-center gap-1.5 font-mono">
-                      <Clock className="w-4 h-4 text-civic-400" />
-                      Intake recorded. Trigger routing from feed to proceed to ROUTED.
-                    </div>
-                  )}
+              ) : (
+                <div className="p-4 bg-slate-950 rounded-xl border border-slate-800 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-semibold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+                      <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+                      Municipal Resolution Progress
+                    </span>
+                    <span className="text-[10px] font-mono text-emerald-400 bg-emerald-950/60 px-2 py-0.5 rounded border border-emerald-500/30">
+                      Official Public Tracking
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-300 leading-relaxed">
+                    {status === 'SUBMITTED' && 'Your complaint has been logged and is awaiting spatial routing by municipal operations.'}
+                    {status === 'ROUTED' && `Complaint is assigned to ${routing?.authority_name || 'Authority'} (${routing?.department_name || 'Department'}). Remediation crew assignment pending.`}
+                    {status === 'IN_PROGRESS' && 'Remediation crew has been dispatched and work is actively underway on-site.'}
+                    {status === 'RESOLVED' && 'Remediation work has been completed by the municipal department. Pending final closure verification.'}
+                    {status === 'CLOSED' && 'This civic case has been remediated, verified, and officially closed.'}
+                    {status === 'HUMAN_REVIEW' && 'Boundary or jurisdiction assignment is currently under active human review by a municipal review officer.'}
+                  </p>
                 </div>
-              </div>
+              )}
 
               {/* Status Timeline */}
               <StatusTimeline

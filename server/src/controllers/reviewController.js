@@ -58,7 +58,18 @@ const startReviewHandler = async (req, res, next) => {
     const { reviewId } = req.params;
     const { reviewerName, note } = req.body || {};
 
-    const effectiveReviewer = (reviewerName && reviewerName.trim()) || req.user?.fullName;
+    let effectiveReviewer = null;
+    if (reviewerName !== undefined) {
+      if (!reviewerName || !reviewerName.trim()) {
+        return res.status(400).json({
+          success: false,
+          error: 'reviewerName is required to start review.'
+        });
+      }
+      effectiveReviewer = reviewerName.trim();
+    } else {
+      effectiveReviewer = req.user?.fullName;
+    }
 
     if (!effectiveReviewer) {
       return res.status(400).json({

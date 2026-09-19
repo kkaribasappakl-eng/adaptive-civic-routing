@@ -1,7 +1,24 @@
 const http = require('http');
 
-const request = (path, method = 'GET', body = null) => {
-  return new Promise((resolve, reject) => {
+let adminToken = null;
+
+const getAdminToken = async () => {
+  if (adminToken) return adminToken;
+  try {
+    const res = await request('/api/auth/demo-login', 'POST', { role: 'ADMIN' }, false);
+    if (res.body?.data?.token || res.body?.token) {
+      adminToken = res.body?.data?.token || res.body?.token;
+    }
+  } catch (e) {}
+  return adminToken;
+};
+
+const request = (path, method = 'GET', body = null, attachAuth = true) => {
+  return new Promise(async (resolve, reject) => {
+    let token = null;
+    if (attachAuth) {
+      token = await getAdminToken();
+    }
     const url = new URL(`http://localhost:4000${path}`);
     const options = {
       hostname: url.hostname,
@@ -9,7 +26,8 @@ const request = (path, method = 'GET', body = null) => {
       path: url.pathname + url.search,
       method: method,
       headers: {
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {})
       }
     };
 
