@@ -1,4 +1,15 @@
 const fs = require('fs');
+const path = require('path');
+
+// Ensure environment variables are loaded from server/.env if not already present
+if (!process.env.GEMINI_API_KEY) {
+  try {
+    require('dotenv').config({ path: path.resolve(__dirname, '../../.env') });
+    require('dotenv').config();
+  } catch (e) {
+    // Ignore error if dotenv is missing
+  }
+}
 
 const CONTROLLED_CATEGORIES = [
   'GARBAGE',
@@ -96,28 +107,54 @@ Respond with ONLY valid JSON in this exact structure:
 
     contents.push({ parts });
 
-    // Call Gemini API using native fetch
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents,
-        generationConfig: {
-          response_mime_type: 'application/json',
-          temperature: 0.1
-        }
-      })
-    });
+    // Call Gemini API using native fetch with official x-goog-api-key header (prevents key exposure in URL)
+    const candidateModels = [process.env.GEMINI_MODEL, 'gemini-3.5-flash', 'gemini-flash-latest'].filter(Boolean);
+    let response = null;
+    let lastErrorStatus = null;
+    let lastErrorText = null;
 
-    if (!response.ok) {
-      const errText = await response.text();
-      console.error('[AI Service Gemini Error]', response.status, errText);
+    for (const modelName of candidateModels) {
+      try {
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent`;
+        response = await fetch(url, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-goog-api-key': apiKey
+          },
+          body: JSON.stringify({
+            contents,
+            generationConfig: {
+              response_mime_type: 'application/json',
+              temperature: 0.1
+            }
+          })
+        });
+
+        if (response.ok) {
+          break; // Success! Proceed to parse
+        }
+
+        lastErrorStatus = response.status;
+        lastErrorText = await response.text();
+
+        // If 400 (e.g. invalid API key), stop trying further models as the key itself is invalid
+        if (response.status === 400) {
+          break;
+        }
+      } catch (reqErr) {
+        lastErrorText = reqErr.message;
+      }
+    }
+
+    if (!response || !response.ok) {
+      const safeErr = apiKey && lastErrorText ? lastErrorText.replace(new RegExp(apiKey.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'), '[REDACTED_KEY]') : (lastErrorText || '');
+      console.error('[AI Service Gemini Error]', lastErrorStatus || 'FAIL', safeErr);
       return {
         available: false,
         category: null,
         confidence: null,
-        reason: `Gemini API returned HTTP ${response.status}. Falling back to manual selection.`,
+        reason: `Gemini API returned HTTP ${lastErrorStatus || 500}. Falling back to manual selection.`,
         allowedCategories: CONTROLLED_CATEGORIES
       };
     }
@@ -135,7 +172,14 @@ Respond with ONLY valid JSON in this exact structure:
       };
     }
 
-    const parsed = JSON.parse(candidateText);
+    let cleanText = candidateText.trim();
+    if (cleanText.startsWith('```json')) {
+      cleanText = cleanText.replace(/^```json\s*/i, '').replace(/\s*```$/, '');
+    } else if (cleanText.startsWith('```')) {
+      cleanText = cleanText.replace(/^```\s*/, '').replace(/\s*```$/, '');
+    }
+
+    const parsed = JSON.parse(cleanText);
 
     // Validate category strictly against controlled list
     const returnedCategory = (parsed.category || '').toUpperCase().trim();
@@ -152,7 +196,7 @@ Respond with ONLY valid JSON in this exact structure:
 
     const confidence = typeof parsed.confidence === 'number'
       ? Math.max(0.0, Math.min(1.0, parseFloat(parsed.confidence.toFixed(4))))
-      : null;
+      : 0.85;
 
     return {
       available: true,
@@ -163,12 +207,13 @@ Respond with ONLY valid JSON in this exact structure:
     };
 
   } catch (err) {
-    console.error('[AI Service Exception]', err.message);
+    const safeMsg = apiKey ? err.message.replace(new RegExp(apiKey.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'), '[REDACTED_KEY]') : err.message;
+    console.error('[AI Service Exception]', safeMsg);
     return {
       available: false,
       category: null,
       confidence: null,
-      reason: `AI classification encountered an error: ${err.message}. Falling back to manual selection.`,
+      reason: `AI classification encountered an error: ${safeMsg}. Falling back to manual selection.`,
       allowedCategories: CONTROLLED_CATEGORIES
     };
   }

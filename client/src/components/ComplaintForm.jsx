@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, useMapEvents, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import {
   FileText,
@@ -23,6 +23,45 @@ import {
   submitCitizenComplaint,
   checkDuplicateReports
 } from '../services/api';
+
+// Fix default Leaflet icon paths in Vite bundles
+delete L.Icon.Default.prototype._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
+  iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+  shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+});
+
+// Map auto-invalidator to prevent gray tiles on mount
+function MapInvalidator() {
+  const map = useMap();
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      map.invalidateSize();
+    }, 150);
+    return () => clearTimeout(timer);
+  }, [map]);
+  return null;
+}
+
+// Map re-centering component when coordinates change externally or via input
+function MapRecenter({ coords }) {
+  const map = useMap();
+  useEffect(() => {
+    if (
+      coords &&
+      typeof coords.lat === 'number' &&
+      typeof coords.lng === 'number' &&
+      !isNaN(coords.lat) &&
+      !isNaN(coords.lng) &&
+      coords.lat >= -90 && coords.lat <= 90 &&
+      coords.lng >= -180 && coords.lng <= 180
+    ) {
+      map.setView([coords.lat, coords.lng], map.getZoom());
+    }
+  }, [coords.lat, coords.lng, map]);
+  return null;
+}
 
 const CONTROLLED_CATEGORIES = [
   { id: 'GARBAGE', label: 'Garbage / Uncollected Waste' },
@@ -534,10 +573,25 @@ export default function ComplaintForm({ onComplaintSubmitted, onTrackComplaint }
               attribution='&copy; OpenStreetMap'
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
             />
+            <MapInvalidator />
+            <MapRecenter coords={coords} />
             <PinLocationHandler
               onLocationChange={(lat, lng) => setCoords({ lat, lng })}
             />
-            <Marker position={[coords.lat, coords.lng]} />
+            <Marker
+              position={[coords.lat, coords.lng]}
+              draggable={true}
+              eventHandlers={{
+                dragend(e) {
+                  const marker = e.target;
+                  const position = marker.getLatLng();
+                  setCoords({
+                    lat: parseFloat(position.lat.toFixed(6)),
+                    lng: parseFloat(position.lng.toFixed(6))
+                  });
+                }
+              }}
+            />
           </MapContainer>
         </div>
 

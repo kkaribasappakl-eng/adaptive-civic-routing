@@ -143,18 +143,28 @@ async function runStage4Tests() {
     const gistExists = parseInt(schemaCheck.rows[0].gist_index_exists) > 0;
     assert(tableExists && gistExists, '2. PostgreSQL Schema & PostGIS GiST Index Verified', `Table: ${tableExists}, GiST Index: ${gistExists}`);
 
-    // 3. AI Service when unconfigured (Explicit fallback without faking)
+    // 3. AI Service: Real Gemini classification if configured, or explicit fallback if unconfigured
     const classifyRes = await sendMultipartRequest('/api/complaints/classify', {
       description: 'Massive pothole near palace road'
     });
-    assert(
-      classifyRes.status === 200 &&
-      classifyRes.body.available === false &&
-      classifyRes.body.category === null &&
-      classifyRes.body.reason?.includes('GEMINI_API_KEY'),
-      '3. AI Service Fallback: Transparently unavailable without faking results',
-      `Reason: ${classifyRes.body.reason}`
-    );
+    if (classifyRes.body.available) {
+      assert(
+        classifyRes.status === 200 &&
+        classifyRes.body.available === true &&
+        ['POTHOLE', 'OTHER'].includes(classifyRes.body.category),
+        '3. AI Service: Real AI classification returned valid category when GEMINI_API_KEY is configured',
+        `Category: ${classifyRes.body.category}, Confidence: ${classifyRes.body.confidence}`
+      );
+    } else {
+      assert(
+        classifyRes.status === 200 &&
+        classifyRes.body.available === false &&
+        classifyRes.body.category === null &&
+        classifyRes.body.reason?.includes('GEMINI_API_KEY'),
+        '3. AI Service Fallback: Transparently unavailable without faking results',
+        `Reason: ${classifyRes.body.reason}`
+      );
+    }
 
     // 4. Valid Complaint Submission (Manual Category)
     console.log('\n--- Testing Complaint Submission Pipeline ---');

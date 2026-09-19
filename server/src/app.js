@@ -1,9 +1,12 @@
+const path = require('path');
+if (process.env.NODE_ENV !== 'production' || process.env.LOAD_DOTENV === 'true') {
+  require('dotenv').config({ path: path.resolve(__dirname, '../.env') });
+}
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
 const cookieParser = require('cookie-parser');
-const path = require('path');
 const healthRoutes = require('./routes/healthRoutes');
 const authRoutes = require('./routes/authRoutes');
 const systemRoutes = require('./routes/systemRoutes');
