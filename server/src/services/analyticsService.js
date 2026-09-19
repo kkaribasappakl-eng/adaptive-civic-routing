@@ -11,32 +11,48 @@ const CONTROLLED_CATEGORIES = [
   'OTHER'
 ];
 
+const CONTROLLED_STATUSES = [
+  'SUBMITTED',
+  'TRIAGED',
+  'ROUTED',
+  'IN_PROGRESS',
+  'RESOLVED',
+  'CLOSED',
+  'HUMAN_REVIEW'
+];
+
 /**
  * Helper to build parameterized SQL WHERE clauses for complaint filters.
  * STRICT SECURITY: Never concatenate raw user input.
+ * All filters parameterized against SQL injection.
+ * Safely ignores empty or whitespace-only filter values.
  */
 function buildComplaintFilters(filters = {}, prefix = 'c', startParamIndex = 1) {
   const clauses = [];
   const params = [];
   let paramIndex = startParamIndex;
 
+  // 1. days filter (integer > 0)
   if (filters.days && Number.isInteger(Number(filters.days)) && Number(filters.days) > 0) {
     clauses.push(`${prefix}.created_at >= CURRENT_TIMESTAMP - ($${paramIndex} * INTERVAL '1 day')`);
     params.push(Number(filters.days));
     paramIndex++;
-  } else if (filters.startDate) {
+  } else if (filters.startDate && typeof filters.startDate === 'string' && filters.startDate.trim().length > 0) {
+    // 2. startDate filter
     clauses.push(`${prefix}.created_at >= $${paramIndex}::timestamptz`);
-    params.push(filters.startDate);
+    params.push(filters.startDate.trim());
     paramIndex++;
   }
 
-  if (filters.endDate) {
+  // 3. endDate filter
+  if (filters.endDate && typeof filters.endDate === 'string' && filters.endDate.trim().length > 0) {
     clauses.push(`${prefix}.created_at <= $${paramIndex}::timestamptz`);
-    params.push(filters.endDate);
+    params.push(filters.endDate.trim());
     paramIndex++;
   }
 
-  if (filters.category && typeof filters.category === 'string') {
+  // 4. category filter
+  if (filters.category && typeof filters.category === 'string' && filters.category.trim().length > 0) {
     const cat = filters.category.trim().toUpperCase();
     if (CONTROLLED_CATEGORIES.includes(cat)) {
       clauses.push(`${prefix}.category = $${paramIndex}`);
@@ -45,10 +61,47 @@ function buildComplaintFilters(filters = {}, prefix = 'c', startParamIndex = 1) 
     }
   }
 
-  if (filters.status && typeof filters.status === 'string') {
+  // 5. status filter
+  if (filters.status && typeof filters.status === 'string' && filters.status.trim().length > 0) {
     const stat = filters.status.trim().toUpperCase();
     clauses.push(`${prefix}.status = $${paramIndex}`);
     params.push(stat);
+    paramIndex++;
+  }
+
+  // 6. authorityId filter (matches UUID or code)
+  if (filters.authorityId && typeof filters.authorityId === 'string' && filters.authorityId.trim().length > 0) {
+    const authVal = filters.authorityId.trim();
+    clauses.push(`EXISTS (
+      SELECT 1 FROM routing_decisions rd_f 
+      WHERE rd_f.complaint_id = ${prefix}.id 
+        AND (rd_f.authority_id::text = $${paramIndex} OR rd_f.authority_id IN (SELECT id FROM authorities WHERE code = $${paramIndex}))
+    )`);
+    params.push(authVal);
+    paramIndex++;
+  }
+
+  // 7. departmentId filter (matches UUID or code)
+  if (filters.departmentId && typeof filters.departmentId === 'string' && filters.departmentId.trim().length > 0) {
+    const deptVal = filters.departmentId.trim();
+    clauses.push(`EXISTS (
+      SELECT 1 FROM routing_decisions rd_f 
+      WHERE rd_f.complaint_id = ${prefix}.id 
+        AND (rd_f.department_id::text = $${paramIndex} OR rd_f.department_id IN (SELECT id FROM departments WHERE code = $${paramIndex}))
+    )`);
+    params.push(deptVal);
+    paramIndex++;
+  }
+
+  // 8. versionId filter (matches UUID or version_code)
+  if (filters.versionId && typeof filters.versionId === 'string' && filters.versionId.trim().length > 0) {
+    const verVal = filters.versionId.trim();
+    clauses.push(`EXISTS (
+      SELECT 1 FROM routing_decisions rd_f 
+      WHERE rd_f.complaint_id = ${prefix}.id 
+        AND (rd_f.jurisdiction_version_id::text = $${paramIndex} OR rd_f.jurisdiction_version_id IN (SELECT id FROM jurisdiction_versions WHERE version_code = $${paramIndex}))
+    )`);
+    params.push(verVal);
     paramIndex++;
   }
 
@@ -75,8 +128,7 @@ const getOverview = async (filters = {}) => {
       COUNT(c.id) FILTER (WHERE c.status = 'RESOLVED')::int AS resolved,
       COUNT(c.id) FILTER (WHERE c.status = 'CLOSED')::int AS closed,
       COUNT(c.id) FILTER (WHERE c.status = 'HUMAN_REVIEW')::int AS human_review,
-      COUNT(c.id) FILTER (WHERE c.status = 'REJECTED')::int AS rejected,
-      COUNT(c.id) FILTER (WHERE c.status NOT IN ('RESOLVED', 'CLOSED', 'REJECTED'))::int AS unresolved_open,
+      COUNT(c.id) FILTER (WHERE c.status NOT IN ('RESOLVED', 'CLOSED'))::int AS unresolved_open,
       COUNT(c.id) FILTER (WHERE c.sla_status = 'AT_RISK')::int AS sla_warnings,
       COUNT(c.id) FILTER (WHERE c.sla_status = 'SLA_BREACHED')::int AS sla_breaches,
       COUNT(c.id) FILTER (WHERE c.sla_status = 'WITHIN_SLA' AND c.routed_at IS NOT NULL)::int AS sla_on_track,
@@ -137,8 +189,7 @@ const getOverview = async (filters = {}) => {
       inProgress: row.in_progress || 0,
       resolved: row.resolved || 0,
       closed: row.closed || 0,
-      humanReview: row.human_review || 0,
-      rejected: row.rejected || 0
+      humanReview: row.human_review || 0
     },
     unresolvedOpen: row.unresolved_open || 0,
     slaWarnings: row.sla_warnings || 0,
@@ -159,6 +210,11 @@ const getOverview = async (filters = {}) => {
  */
 const getComplaintTrends = async (filters = {}) => {
   const days = Number(filters.days) === 30 ? 30 : 7;
+  const nonDateFilters = { ...filters };
+  delete nonDateFilters.days;
+  delete nonDateFilters.startDate;
+  delete nonDateFilters.endDate;
+  const { andSql, params } = buildComplaintFilters(nonDateFilters, 'c', 2);
 
   const query = `
     WITH dates AS (
@@ -172,12 +228,12 @@ const getComplaintTrends = async (filters = {}) => {
       COUNT(c.id) FILTER (WHERE c.status = 'HUMAN_REVIEW')::int AS human_review_count,
       COUNT(c.id) FILTER (WHERE c.status IN ('RESOLVED', 'CLOSED'))::int AS resolved_count
     FROM dates d
-    LEFT JOIN complaints c ON c.created_at::date = d.day
+    LEFT JOIN complaints c ON c.created_at::date = d.day ${andSql}
     GROUP BY d.day
     ORDER BY d.day ASC;
   `;
 
-  const res = await pool.query(query, [days]);
+  const res = await pool.query(query, [days, ...params]);
   return {
     days,
     trends: res.rows
@@ -231,6 +287,17 @@ const getCategoryBreakdown = async (filters = {}) => {
  * Uses stored routing decisions; does NOT infer authority from category!
  */
 const getAuthorityPerformance = async (filters = {}) => {
+  const clauses = ['a.is_active = TRUE'];
+  const params = [];
+  let pIdx = 1;
+
+  if (filters.authorityId && typeof filters.authorityId === 'string' && filters.authorityId.trim().length > 0) {
+    const authVal = filters.authorityId.trim();
+    clauses.push(`(a.id::text = $${pIdx} OR a.code = $${pIdx})`);
+    params.push(authVal);
+    pIdx++;
+  }
+
   const query = `
     SELECT 
       a.id AS authority_id,
@@ -245,12 +312,12 @@ const getAuthorityPerformance = async (filters = {}) => {
     FROM authorities a
     LEFT JOIN routing_decisions rd ON rd.authority_id = a.id
     LEFT JOIN complaints c ON rd.complaint_id = c.id
-    WHERE a.is_active = TRUE
+    WHERE ${clauses.join(' AND ')}
     GROUP BY a.id, a.name, a.code
     ORDER BY routed_complaints DESC, a.name ASC;
   `;
 
-  const res = await pool.query(query);
+  const res = await pool.query(query, params);
   return res.rows.map((row) => ({
     authorityId: row.authority_id,
     authorityName: row.authority_name,
@@ -268,6 +335,24 @@ const getAuthorityPerformance = async (filters = {}) => {
  * 5. Department Workload & Performance (SELECT-only from routing decisions)
  */
 const getDepartmentPerformance = async (filters = {}) => {
+  const clauses = ['d.is_active = TRUE'];
+  const params = [];
+  let pIdx = 1;
+
+  if (filters.authorityId && typeof filters.authorityId === 'string' && filters.authorityId.trim().length > 0) {
+    const authVal = filters.authorityId.trim();
+    clauses.push(`(a.id::text = $${pIdx} OR a.code = $${pIdx})`);
+    params.push(authVal);
+    pIdx++;
+  }
+
+  if (filters.departmentId && typeof filters.departmentId === 'string' && filters.departmentId.trim().length > 0) {
+    const deptVal = filters.departmentId.trim();
+    clauses.push(`(d.id::text = $${pIdx} OR d.code = $${pIdx})`);
+    params.push(deptVal);
+    pIdx++;
+  }
+
   const query = `
     SELECT 
       d.id AS department_id,
@@ -285,12 +370,12 @@ const getDepartmentPerformance = async (filters = {}) => {
     JOIN authorities a ON d.authority_id = a.id
     LEFT JOIN routing_decisions rd ON rd.department_id = d.id
     LEFT JOIN complaints c ON rd.complaint_id = c.id
-    WHERE d.is_active = TRUE
+    WHERE ${clauses.join(' AND ')}
     GROUP BY d.id, d.name, d.code, a.id, a.name, a.code
     ORDER BY routed_complaints DESC, d.name ASC;
   `;
 
-  const res = await pool.query(query);
+  const res = await pool.query(query, params);
   return res.rows.map((row) => ({
     departmentId: row.department_id,
     departmentName: row.department_name,
@@ -545,6 +630,26 @@ const getReviewAnalytics = async (filters = {}) => {
  * NEVER recalculates historical points against active version!
  */
 const getJurisdictionAnalytics = async (filters = {}) => {
+  const clauses = [];
+  const params = [];
+  let pIdx = 1;
+
+  if (filters.versionId && typeof filters.versionId === 'string' && filters.versionId.trim().length > 0) {
+    const verVal = filters.versionId.trim();
+    clauses.push(`(jv.id::text = $${pIdx} OR jv.version_code = $${pIdx})`);
+    params.push(verVal);
+    pIdx++;
+  }
+
+  if (filters.authorityId && typeof filters.authorityId === 'string' && filters.authorityId.trim().length > 0) {
+    const authVal = filters.authorityId.trim();
+    clauses.push(`(a.id::text = $${pIdx} OR a.code = $${pIdx})`);
+    params.push(authVal);
+    pIdx++;
+  }
+
+  const whereSql = clauses.length > 0 ? `WHERE ${clauses.join(' AND ')}` : '';
+
   const query = `
     SELECT 
       jv.id AS version_id,
@@ -565,11 +670,12 @@ const getJurisdictionAnalytics = async (filters = {}) => {
     JOIN jurisdiction_versions jv ON rd.jurisdiction_version_id = jv.id
     LEFT JOIN jurisdictions j ON rd.jurisdiction_id = j.id
     LEFT JOIN authorities a ON rd.authority_id = a.id
+    ${whereSql}
     GROUP BY jv.id, jv.version_code, jv.version_number, jv.status, j.id, j.name, j.code, a.id, a.name, a.code
     ORDER BY jv.version_number DESC, complaint_count DESC;
   `;
 
-  const res = await pool.query(query);
+  const res = await pool.query(query, params);
 
   // Version-level provenance summary
   const versionSummaryMap = new Map();

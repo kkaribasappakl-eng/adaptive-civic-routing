@@ -291,7 +291,6 @@ export default function AnalyticsDashboard() {
             <option value="RESOLVED">Resolved</option>
             <option value="CLOSED">Closed</option>
             <option value="HUMAN_REVIEW">Human Review</option>
-            <option value="REJECTED">Rejected</option>
           </select>
 
           {(filters.category || filters.status || filters.days !== 7) && (
