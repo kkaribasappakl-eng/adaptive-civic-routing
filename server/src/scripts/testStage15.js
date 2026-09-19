@@ -19,6 +19,8 @@
 const http = require('http');
 const path = require('path');
 const fs = require('fs');
+const net = require('net');
+const { spawnSync } = require('child_process');
 const { pool, getPoolConfig, getSslConfig } = require('../config/db');
 const { parseAllowedOrigins, parseTrustProxy } = require('../app');
 const { getCookieOptions } = require('../controllers/authController');
@@ -69,6 +71,25 @@ function sendJsonRequest(apiPath, method = 'GET', data = null, headers = {}) {
     req.on('error', reject);
     if (body) req.write(body);
     req.end();
+  });
+}
+
+function checkPortListening(port) {
+  return new Promise((resolve) => {
+    const socket = new net.Socket();
+    socket.setTimeout(400);
+    socket.once('connect', () => {
+      socket.destroy();
+      resolve(true);
+    });
+    socket.once('error', () => {
+      resolve(false);
+    });
+    socket.once('timeout', () => {
+      socket.destroy();
+      resolve(false);
+    });
+    socket.connect(port, '127.0.0.1');
   });
 }
 
@@ -551,6 +572,136 @@ async function runStage15Tests() {
       typeof serverModule.gracefulShutdown === 'function',
       'server.js exports gracefulShutdown handler for container process lifecycle',
       `type: ${typeof serverModule.gracefulShutdown}`
+    );
+
+    // -------------------------------------------------------------------------
+    // ACTUAL PRODUCTION STARTUP PATH VERIFICATION (ISOLATED CHILD PROCESSES)
+    // -------------------------------------------------------------------------
+    console.log('\n\x1b[36m--- Section 7b: Actual Production Startup Path Verification (Subprocesses) ---\x1b[0m');
+    const serverEntry = path.resolve(__dirname, '../server.js');
+
+    // CASE 1: NODE_ENV=production + JWT_SECRET missing
+    const isolatedPort1 = 49161;
+    const envCase1 = {
+      ...process.env,
+      NODE_ENV: 'production',
+      PORT: String(isolatedPort1)
+    };
+    delete envCase1.JWT_SECRET;
+
+    const runCase1 = spawnSync(process.execPath, [serverEntry], {
+      env: envCase1,
+      encoding: 'utf-8',
+      timeout: 5000
+    });
+
+    const isListening1 = await checkPortListening(isolatedPort1);
+    const case1Output = (runCase1.stdout || '') + (runCase1.stderr || '');
+
+    assert(
+      runCase1.status !== 0,
+      'CASE 1: Actual production startup with missing JWT_SECRET exits with non-zero failure status',
+      `exitCode: ${runCase1.status}`
+    );
+    assert(
+      case1Output.includes('STARTUP FAILED') && case1Output.includes('Missing or empty JWT_SECRET'),
+      'CASE 1: Actual production startup detects missing secret and reports configuration validation failure',
+      `stderr: ${runCase1.stderr?.trim()}`
+    );
+    assert(
+      !case1Output.includes('Backend Service running on port:') && isListening1 === false,
+      'CASE 1: Evidence verified - server.listen() was NOT reached and HTTP server is not listening'
+    );
+
+    // CASE 2: NODE_ENV=production + JWT_SECRET invalid/default/too short
+    const isolatedPort2 = 49162;
+    const canaryInsecureSecret = 'short_canary_secret_insecure';
+    const envCase2 = {
+      ...process.env,
+      NODE_ENV: 'production',
+      JWT_SECRET: canaryInsecureSecret,
+      PORT: String(isolatedPort2)
+    };
+
+    const runCase2 = spawnSync(process.execPath, [serverEntry], {
+      env: envCase2,
+      encoding: 'utf-8',
+      timeout: 5000
+    });
+
+    const isListening2 = await checkPortListening(isolatedPort2);
+    const case2Output = (runCase2.stdout || '') + (runCase2.stderr || '');
+
+    assert(
+      runCase2.status !== 0,
+      'CASE 2: Actual production startup with invalid/insecure JWT_SECRET exits with non-zero failure status',
+      `exitCode: ${runCase2.status}`
+    );
+    assert(
+      case2Output.includes('STARTUP FAILED') && case2Output.includes('Production secret is insecure'),
+      'CASE 2: Actual production startup halts before listen() when secret is insecure'
+    );
+    assert(
+      !case2Output.includes('Backend Service running on port:') && isListening2 === false,
+      'CASE 2: Evidence verified - server.listen() was NOT reached and HTTP requests cannot be accepted'
+    );
+    assert(
+      !case2Output.includes(canaryInsecureSecret),
+      'CASE 2: Security requirement met - invalid secret NEVER appears in stdout, stderr, error, or logs'
+    );
+
+    // CASE 2b: NODE_ENV=production + known default development secret
+    const isolatedPort2b = 49163;
+    const envCase2b = {
+      ...process.env,
+      NODE_ENV: 'production',
+      JWT_SECRET: DEFAULT_DEV_SECRET,
+      PORT: String(isolatedPort2b)
+    };
+    const runCase2b = spawnSync(process.execPath, [serverEntry], {
+      env: envCase2b,
+      encoding: 'utf-8',
+      timeout: 5000
+    });
+    const isListening2b = await checkPortListening(isolatedPort2b);
+    const case2bOutput = (runCase2b.stdout || '') + (runCase2b.stderr || '');
+    assert(
+      runCase2b.status !== 0 && isListening2b === false && case2bOutput.includes('default, demo, or placeholder'),
+      'CASE 2b: Actual production startup with default/dev JWT_SECRET exits non-zero and refuses startup before listen()'
+    );
+
+    // CASE 3: NODE_ENV=production + valid 64-character explicit secret
+    const isolatedPort3 = 49164;
+    const envCase3 = {
+      ...process.env,
+      NODE_ENV: 'production',
+      JWT_SECRET: validProdSecret,
+      PORT: String(isolatedPort3),
+      STARTUP_VERIFY_ONLY: 'true'
+    };
+
+    const runCase3 = spawnSync(process.execPath, [serverEntry], {
+      env: envCase3,
+      encoding: 'utf-8',
+      timeout: 5000
+    });
+
+    const isListening3 = await checkPortListening(isolatedPort3);
+    const case3Output = (runCase3.stdout || '') + (runCase3.stderr || '');
+
+    assert(
+      runCase3.status === 0,
+      'CASE 3: Actual production startup with valid 64-character secret passes validation with exit status 0',
+      `exitCode: ${runCase3.status}`
+    );
+    assert(
+      case3Output.includes('[Startup Verification] Production configuration validated successfully. Startup allowed.'),
+      'CASE 3: Actual production startup entry point proves configuration passed without error',
+      `stdout: ${runCase3.stdout?.trim()}`
+    );
+    assert(
+      isListening3 === false,
+      'CASE 3: Controlled startup verification test exits cleanly leaving NO lingering real server process'
     );
 
     // ----------------------------------------------------------------

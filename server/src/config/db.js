@@ -1,8 +1,10 @@
 const { Pool } = require('pg');
 const fs = require('fs');
 const path = require('path');
-require('dotenv').config();
-require('dotenv').config({ path: path.resolve(__dirname, '../../.env') });
+if (process.env.NODE_ENV !== 'production' || process.env.LOAD_DOTENV === 'true') {
+  require('dotenv').config();
+  require('dotenv').config({ path: path.resolve(__dirname, '../../.env') });
+}
 
 let pool = null;
 let dbStatus = {

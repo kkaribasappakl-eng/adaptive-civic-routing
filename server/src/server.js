@@ -1,6 +1,8 @@
 const path = require('path');
-require('dotenv').config();
-require('dotenv').config({ path: path.resolve(__dirname, '../.env') });
+if (process.env.NODE_ENV !== 'production' || process.env.LOAD_DOTENV === 'true') {
+  require('dotenv').config();
+  require('dotenv').config({ path: path.resolve(__dirname, '../.env') });
+}
 const http = require('http');
 const app = require('./app');
 const { initSocketIO } = require('./services/socketService');
@@ -25,6 +27,12 @@ if (require.main === module) {
     console.error(err.message);
     console.error('Process exiting before accepting connections.\n');
     process.exit(1);
+  }
+
+  // Controlled verification entry point for automated startup test runners
+  if (process.env.STARTUP_VERIFY_ONLY === 'true' || process.argv.includes('--verify-startup')) {
+    console.log('[Startup Verification] Production configuration validated successfully. Startup allowed.');
+    process.exit(0);
   }
 
   server.listen(PORT, async () => {
