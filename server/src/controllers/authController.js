@@ -1,5 +1,6 @@
 const authService = require('../services/authService');
 const auditService = require('../services/auditService');
+const { resetRateLimiter } = require('../middleware/authMiddleware');
 
 const getCookieOptions = () => {
   const isProd = process.env.NODE_ENV === 'production';
@@ -117,6 +118,7 @@ const demoLogin = async (req, res, next) => {
     const { user, token } = await authService.demoLogin(role);
 
     setAuthCookie(res, token);
+    resetRateLimiter(req.ip || req.socket?.remoteAddress);
 
     // Audit demo login
     await auditService.logAuditEvent({

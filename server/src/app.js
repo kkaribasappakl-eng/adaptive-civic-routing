@@ -21,10 +21,67 @@ const { publicIntakeLimiter, aiClassifyLimiter, gisProbeLimiter } = require('./m
 
 const app = express();
 
-// Trust reverse proxy (Render, AWS ALB, Cloudflare, Nginx) so req.ip and req.secure are accurate
-const trustProxyVal = process.env.TRUST_PROXY !== undefined
-  ? (isNaN(process.env.TRUST_PROXY) ? process.env.TRUST_PROXY : parseInt(process.env.TRUST_PROXY, 10))
-  : 1;
+/**
+ * Safely parse and validate the TRUST_PROXY environment configuration.
+ * 
+ * Safe Default:
+ * - Unset, empty, or false => false (proxy trust disabled, safe for local development)
+ * 
+ * Production Deployments:
+ * - Explicit hop count (e.g. 1 for standard single reverse proxy like Render, Nginx, AWS ALB)
+ * - Specific subnet keywords ('loopback', 'linklocal', 'uniquelocal') or IP lists
+ * - 'true' supported for compatibility testing only
+ * - Invalid/dangerous strings safely fall back to false
+ */
+const parseTrustProxy = (val) => {
+  if (val === undefined || val === null || val === '') {
+    return false;
+  }
+
+  if (typeof val === 'boolean') {
+    return val;
+  }
+
+  if (typeof val === 'number') {
+    return val >= 0 ? val : false;
+  }
+
+  const str = String(val).trim();
+
+  if (str.toLowerCase() === 'false' || str === '0') {
+    return false;
+  }
+  if (str.toLowerCase() === 'true') {
+    return true;
+  }
+
+  if (/^\d+$/.test(str)) {
+    return parseInt(str, 10);
+  }
+
+  const allowedKeywords = ['loopback', 'linklocal', 'uniquelocal'];
+  if (allowedKeywords.includes(str.toLowerCase())) {
+    return str.toLowerCase();
+  }
+
+  if (str.includes(',')) {
+    const parts = str.split(',').map(s => s.trim()).filter(Boolean);
+    const isValid = parts.every(p => /^([0-9a-fA-F:.]+(\/\d+)?|\w+)$/.test(p));
+    if (isValid && parts.length > 0) {
+      return parts;
+    }
+  }
+
+  if (/^[0-9a-fA-F:.]+(\/\d+)?$/.test(str)) {
+    return str;
+  }
+
+  console.warn(`⚠️ [SECURITY WARNING] Invalid TRUST_PROXY configuration "${str}". Safely falling back to false.`);
+  return false;
+};
+
+// Validated reverse proxy trust setting
+const trustProxyVal = parseTrustProxy(process.env.TRUST_PROXY);
 app.set('trust proxy', trustProxyVal);
 
 // Security headers with Helmet (configured to allow cross-origin image loading for uploads)
@@ -126,3 +183,4 @@ app.use(errorHandler);
 
 module.exports = app;
 module.exports.parseAllowedOrigins = parseAllowedOrigins;
+module.exports.parseTrustProxy = parseTrustProxy;

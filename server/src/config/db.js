@@ -1,5 +1,8 @@
 const { Pool } = require('pg');
+const fs = require('fs');
+const path = require('path');
 require('dotenv').config();
+require('dotenv').config({ path: path.resolve(__dirname, '../../.env') });
 
 let pool = null;
 let dbStatus = {
@@ -11,34 +14,80 @@ let dbStatus = {
   postgisVersion: null
 };
 
-const getPoolConfig = () => {
-  const max = parseInt(process.env.DB_POOL_MAX || '10', 10);
-  const idleTimeoutMillis = parseInt(process.env.DB_POOL_IDLE_TIMEOUT || '10000', 10);
-  const connectionTimeoutMillis = parseInt(process.env.DB_POOL_CONN_TIMEOUT || '3000', 10);
+/**
+ * Configure PostgreSQL SSL / TLS connection parameters.
+ * 
+ * Rules:
+ * 1. Local/no SSL: Returns false when SSL is not required or explicitly disabled.
+ * 2. Production TLS: Enabled when DB_SSL=true or DATABASE_URL contains sslmode=(require|verify-ca|verify-full).
+ * 3. Secure by default: rejectUnauthorized is true by default. It is NEVER false by default.
+ * 4. Insecure override: rejectUnauthorized=false is supported ONLY via explicit DB_SSL_REJECT_UNAUTHORIZED='false'.
+ * 5. CA certificate support: DB_SSL_CA supports either a file path or raw PEM certificate string.
+ */
+const getSslConfig = (env = process.env) => {
+  // Explicit DB_SSL=false disables SSL
+  if (env.DB_SSL === 'false') {
+    return false;
+  }
 
-  const useSsl = process.env.DB_SSL === 'true' || 
-                 Boolean(process.env.DATABASE_URL && process.env.DATABASE_URL.includes('sslmode=require'));
-  const ssl = useSsl ? { rejectUnauthorized: false } : false;
+  const useSsl = env.DB_SSL === 'true' || 
+                 Boolean(env.DATABASE_URL && /sslmode=(require|verify-ca|verify-full)/i.test(env.DATABASE_URL));
+
+  if (!useSsl) {
+    return false;
+  }
+
+  // Certificate verification MUST remain enabled by default (rejectUnauthorized: true)
+  // Insecure verification is strictly opt-in via DB_SSL_REJECT_UNAUTHORIZED === 'false'
+  const rejectUnauthorized = env.DB_SSL_REJECT_UNAUTHORIZED !== 'false';
+
+  const sslConfig = {
+    rejectUnauthorized
+  };
+
+  // Explicit CA certificate support
+  if (env.DB_SSL_CA && typeof env.DB_SSL_CA === 'string' && env.DB_SSL_CA.trim()) {
+    const caVal = env.DB_SSL_CA.trim();
+    try {
+      if (fs.existsSync && fs.existsSync(caVal)) {
+        sslConfig.ca = fs.readFileSync(caVal, 'utf-8');
+      } else {
+        sslConfig.ca = caVal;
+      }
+    } catch {
+      sslConfig.ca = caVal;
+    }
+  }
+
+  return sslConfig;
+};
+
+const getPoolConfig = (env = process.env) => {
+  const max = parseInt(env.DB_POOL_MAX || '10', 10);
+  const idleTimeoutMillis = parseInt(env.DB_POOL_IDLE_TIMEOUT || '10000', 10);
+  const connectionTimeoutMillis = parseInt(env.DB_POOL_CONN_TIMEOUT || '3000', 10);
+
+  const ssl = getSslConfig(env);
 
   // Cloud deployment prioritization: If DATABASE_URL is explicitly set, use it first
-  if (process.env.DATABASE_URL && process.env.DATABASE_URL.trim() !== '') {
+  if (env.DATABASE_URL && env.DATABASE_URL.trim() !== '') {
     const config = {
-      connectionString: process.env.DATABASE_URL.trim(),
+      connectionString: env.DATABASE_URL.trim(),
       connectionTimeoutMillis,
       idleTimeoutMillis,
       max
     };
-    if (useSsl) {
+    if (ssl) {
       config.ssl = ssl;
     }
     return config;
   }
 
-  const host = process.env.DB_HOST || 'localhost';
-  const port = parseInt(process.env.DB_PORT || '5432', 10);
-  const database = process.env.DB_NAME || 'adaptive_civic_routing';
-  const user = process.env.DB_USER || 'postgres';
-  const password = process.env.DB_PASSWORD !== undefined ? String(process.env.DB_PASSWORD) : '';
+  const host = env.DB_HOST || 'localhost';
+  const port = parseInt(env.DB_PORT || '5432', 10);
+  const database = env.DB_NAME || 'adaptive_civic_routing';
+  const user = env.DB_USER || 'postgres';
+  const password = env.DB_PASSWORD !== undefined ? String(env.DB_PASSWORD) : '';
 
   const config = {
     host,
@@ -51,7 +100,7 @@ const getPoolConfig = () => {
     max
   };
 
-  if (useSsl) {
+  if (ssl) {
     config.ssl = ssl;
   }
 
@@ -138,5 +187,6 @@ module.exports = {
   pool,
   checkDatabaseHealth,
   getDbStatus,
-  getPoolConfig
+  getPoolConfig,
+  getSslConfig
 };

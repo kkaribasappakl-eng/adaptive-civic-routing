@@ -1,8 +1,11 @@
+const path = require('path');
 require('dotenv').config();
+require('dotenv').config({ path: path.resolve(__dirname, '../.env') });
 const http = require('http');
 const app = require('./app');
 const { initSocketIO } = require('./services/socketService');
 const { pool, checkDatabaseHealth } = require('./config/db');
+const { validateJwtConfig } = require('./services/authService');
 
 const PORT = process.env.PORT || 4000;
 const CLIENT_URL = process.env.CLIENT_URL || 'http://localhost:5173';
@@ -14,6 +17,16 @@ initSocketIO(server, CLIENT_URL);
 
 // Start server if executed directly
 if (require.main === module) {
+  try {
+    // Fail closed before opening HTTP listener if production security is violated
+    validateJwtConfig();
+  } catch (err) {
+    console.error('\n🔴 [STARTUP FAILED — CONFIGURATION ERROR]');
+    console.error(err.message);
+    console.error('Process exiting before accepting connections.\n');
+    process.exit(1);
+  }
+
   server.listen(PORT, async () => {
     console.log(`====================================================`);
     console.log(` Adaptive Civic Routing Intelligence System`);

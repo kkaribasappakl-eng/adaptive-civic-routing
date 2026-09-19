@@ -43,11 +43,7 @@ const sanitizeAuditMetadata = (data, depth = 0) => {
  */
 const extractClientIp = (req) => {
   if (!req) return null;
-  const forwarded = req.headers?.['x-forwarded-for'];
-  if (forwarded) {
-    return forwarded.split(',')[0].trim();
-  }
-  return req.ip || req.connection?.remoteAddress || null;
+  return req.ip || req.socket?.remoteAddress || req.connection?.remoteAddress || null;
 };
 
 /**
@@ -388,6 +384,7 @@ const getAuditSummary = async (userRole = 'OPERATOR') => {
 
 module.exports = {
   sanitizeAuditMetadata,
+  extractClientIp,
   logAuditEvent,
   queryAuditLogs,
   getAuditLogById,

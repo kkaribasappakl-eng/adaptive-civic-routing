@@ -178,7 +178,10 @@ const RATE_LIMIT_WINDOW_MS = 5 * 60 * 1000;
 const MAX_FAILED_ATTEMPTS = 5;
 
 const loginRateLimiter = (req, res, next) => {
-  const clientIp = req.headers['x-forwarded-for']?.split(',')[0].trim() || req.ip || req.connection.remoteAddress || 'unknown';
+  if (process.env.DISABLE_RATE_LIMITS === 'true') {
+    return next();
+  }
+  const clientIp = req.ip || req.socket?.remoteAddress || req.connection?.remoteAddress || 'unknown';
   const record = failedLoginAttempts.get(clientIp);
   const now = Date.now();
 

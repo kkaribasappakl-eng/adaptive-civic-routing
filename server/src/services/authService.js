@@ -5,16 +5,71 @@ const { pool } = require('../config/db');
 const BCRYPT_ROUNDS = 10;
 const JWT_EXPIRES_IN = '24h';
 const DEFAULT_DEV_SECRET = 'dev_stage_1_super_secret_jwt_key_12345';
-const JWT_SECRET = process.env.JWT_SECRET || DEFAULT_DEV_SECRET;
 
-const isJwtSecretSecure = () => {
-  return Boolean(process.env.JWT_SECRET && process.env.JWT_SECRET !== DEFAULT_DEV_SECRET);
+const KNOWN_INSECURE_SECRETS = [
+  DEFAULT_DEV_SECRET,
+  'replace_with_a_secure_random_64_char_secret_key_in_production',
+  'hackmysuru_jwt_secure_key_stage12_2026',
+  'secret',
+  'jwt_secret',
+  'jwtsecret',
+  'changeme',
+  'password',
+  'admin',
+  'test',
+  'dev',
+  'development',
+  'default',
+  '123456',
+  '12345678',
+  '1234567890'
+];
+
+const getJwtSecret = () => {
+  return process.env.JWT_SECRET || DEFAULT_DEV_SECRET;
 };
 
-if (process.env.NODE_ENV === 'production' && !isJwtSecretSecure()) {
-  console.warn('\n⚠️ [SECURITY WARNING] Server running in production mode with default/missing JWT_SECRET!');
-  console.warn('⚠️ Set a secure random JWT_SECRET in server environment variables.\n');
-}
+/**
+ * Strict production validation for JWT_SECRET
+ * Refuses startup if missing, empty, known default/placeholder, or obviously insecure (< 32 chars).
+ * CRITICAL SECURITY: Never prints, leaks, or exposes the actual secret value in error messages or logs.
+ */
+const validateJwtConfig = (env = process.env) => {
+  const isProduction = env.NODE_ENV === 'production';
+  const secret = env.JWT_SECRET;
+
+  if (isProduction) {
+    if (!secret || typeof secret !== 'string' || secret.trim() === '') {
+      throw new Error('[FATAL] JWT_SECRET configuration error: Missing or empty JWT_SECRET in production mode. Refusing startup.');
+    }
+
+    const trimmedSecret = secret.trim();
+
+    const isKnownDefault = KNOWN_INSECURE_SECRETS.some(
+      known => known.toLowerCase() === trimmedSecret.toLowerCase()
+    );
+    if (isKnownDefault) {
+      throw new Error('[FATAL] JWT_SECRET configuration error: Production environment cannot use a default, demo, or placeholder secret. Refusing startup.');
+    }
+
+    if (trimmedSecret.length < 32) {
+      throw new Error('[FATAL] JWT_SECRET configuration error: Production secret is insecure (minimum 32 characters required). Refusing startup.');
+    }
+  }
+
+  return true;
+};
+
+const isJwtSecretSecure = (secret = process.env.JWT_SECRET) => {
+  if (!secret || typeof secret !== 'string' || secret.trim() === '') return false;
+  const trimmed = secret.trim();
+  const isKnownDefault = KNOWN_INSECURE_SECRETS.some(
+    known => known.toLowerCase() === trimmed.toLowerCase()
+  );
+  if (isKnownDefault) return false;
+  if (trimmed.length < 32) return false;
+  return true;
+};
 
 const CONTROLLED_ROLES = ['CITIZEN', 'OPERATOR', 'ADMIN'];
 
@@ -46,14 +101,14 @@ const generateToken = (user, expiresIn = JWT_EXPIRES_IN) => {
     role: user.role,
     email: user.email
   };
-  return jwt.sign(payload, JWT_SECRET, { expiresIn });
+  return jwt.sign(payload, getJwtSecret(), { expiresIn });
 };
 
 /**
  * Verify JWT signature and expiration
  */
 const verifyToken = (token) => {
-  return jwt.verify(token, JWT_SECRET);
+  return jwt.verify(token, getJwtSecret());
 };
 
 /**
@@ -302,5 +357,8 @@ module.exports = {
   provisionUserByAdmin,
   getUserById,
   DEFAULT_DEV_SECRET,
-  isJwtSecretSecure
+  KNOWN_INSECURE_SECRETS,
+  getJwtSecret,
+  isJwtSecretSecure,
+  validateJwtConfig
 };

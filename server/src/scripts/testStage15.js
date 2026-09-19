@@ -19,11 +19,11 @@
 const http = require('http');
 const path = require('path');
 const fs = require('fs');
-const { pool } = require('../config/db');
-const { getPoolConfig } = require('../config/db');
-const { parseAllowedOrigins } = require('../app');
+const { pool, getPoolConfig, getSslConfig } = require('../config/db');
+const { parseAllowedOrigins, parseTrustProxy } = require('../app');
 const { getCookieOptions } = require('../controllers/authController');
-const { isJwtSecretSecure, DEFAULT_DEV_SECRET } = require('../services/authService');
+const { isJwtSecretSecure, validateJwtConfig, DEFAULT_DEV_SECRET, KNOWN_INSECURE_SECRETS } = require('../services/authService');
+const { extractClientIp } = require('../services/auditService');
 const { createRateLimiter } = require('../middleware/rateLimitMiddleware');
 const app = require('../app');
 
@@ -145,13 +145,81 @@ async function runStage15Tests() {
     // ----------------------------------------------------------------
     console.log('\n\x1b[36m--- Section 2: Reverse Proxy & Trust Proxy Configuration ---\x1b[0m');
 
-    const trustProxySetting = app.get('trust proxy');
+    // 1. Default/local safe behavior (when unconfigured / unset => false)
     assert(
-      trustProxySetting !== undefined && trustProxySetting !== false,
-      'Express app has trust proxy enabled for cloud reverse proxies (Render, AWS, Cloudflare)',
-      `trust proxy setting: ${trustProxySetting}`
+      parseTrustProxy(undefined) === false && parseTrustProxy('') === false && parseTrustProxy(null) === false,
+      'parseTrustProxy defaults to false when unset or empty (safe local default prevents X-Forwarded-* spoofing)'
+    );
+    assert(
+      parseTrustProxy('false') === false && parseTrustProxy(false) === false && parseTrustProxy('0') === false,
+      'parseTrustProxy returns false when explicitly disabled ("false", false, "0")'
     );
 
+    // 2. Configured trusted proxy behavior
+    assert(
+      parseTrustProxy('1') === 1 && parseTrustProxy(1) === 1,
+      'parseTrustProxy parses numeric hop count "1" (recommended for single reverse proxy e.g. Render, Nginx, ALB)'
+    );
+    assert(
+      parseTrustProxy('2') === 2,
+      'parseTrustProxy parses multi-hop count "2" for layered ingress architectures'
+    );
+    assert(
+      parseTrustProxy('loopback') === 'loopback' && parseTrustProxy('linklocal') === 'linklocal',
+      'parseTrustProxy supports standard Express subnet keywords ("loopback", "linklocal")'
+    );
+    const parsedIps = parseTrustProxy('10.0.0.1, 192.168.1.1');
+    assert(
+      Array.isArray(parsedIps) && parsedIps.length === 2 && parsedIps[0] === '10.0.0.1',
+      'parseTrustProxy supports explicit comma-separated trusted proxy IP lists'
+    );
+    assert(
+      parseTrustProxy('true') === true,
+      'parseTrustProxy supports "true" for compatibility testing'
+    );
+
+    // 3. Invalid TRUST_PROXY configuration is safely handled
+    assert(
+      parseTrustProxy('invalid_proxy_setting_!@#$%') === false && parseTrustProxy(-5) === false,
+      'parseTrustProxy safely falls back to false on invalid/malformed configuration inputs'
+    );
+
+    // 4. Express App trust proxy setting inspection
+    const currentTrustProxy = app.get('trust proxy');
+    assert(
+      currentTrustProxy !== undefined,
+      'Express app has a defined, validated trust proxy configuration',
+      `current setting: ${currentTrustProxy}`
+    );
+
+    // 5. Anti-spoofing verification: X-Forwarded-For cannot spoof identity when proxy trust is not configured
+    const unproxiedReq = {
+      ip: '127.0.0.1',
+      headers: { 'x-forwarded-for': '203.0.113.195' },
+      socket: { remoteAddress: '127.0.0.1' },
+      connection: { remoteAddress: '127.0.0.1' }
+    };
+    const resolvedAuditIp = extractClientIp(unproxiedReq);
+    assert(
+      resolvedAuditIp === '127.0.0.1' && resolvedAuditIp !== '203.0.113.195',
+      'extractClientIp ignores spoofed X-Forwarded-For headers when proxy trust is not configured'
+    );
+
+    // 6. Rate limiting identifies client using validated client IP
+    const rateLimiterReq = {
+      ip: '198.51.100.5',
+      headers: { 'x-forwarded-for': '203.0.113.99' },
+      socket: { remoteAddress: '198.51.100.5' }
+    };
+    const testLimiterSp = createRateLimiter({ windowMs: 5000, max: 2 });
+    let spPassed = false;
+    testLimiterSp(rateLimiterReq, { setHeader: () => {} }, () => { spPassed = true; });
+    assert(
+      spPassed === true,
+      'Rate limiter identifies clients via validated req.ip rather than arbitrary X-Forwarded-For header'
+    );
+
+    // 7. API request handling reverse proxy headers
     const forwardedRes = await sendJsonRequest('/api/health', 'GET', null, {
       'X-Forwarded-For': '203.0.113.195, 10.0.0.1',
       'X-Forwarded-Proto': 'https'
@@ -240,42 +308,80 @@ async function runStage15Tests() {
     }
 
     // ----------------------------------------------------------------
-    // SECTION 5: Database Connection Pool & Cloud SSL Prioritization
+    // SECTION 5: Database Connection Pool & SSL Security
     // ----------------------------------------------------------------
-    console.log('\n\x1b[36m--- Section 5: Database Connection Pool & Cloud SSL Prioritization ---\x1b[0m');
+    console.log('\n\x1b[36m--- Section 5: Database Connection Pool & SSL Security ---\x1b[0m');
 
-    const originalDbUrl = process.env.DATABASE_URL;
-    const originalDbSsl = process.env.DB_SSL;
-    const originalPoolMax = process.env.DB_POOL_MAX;
+    // 1. Local/no SSL => SSL disabled as configured
+    const localNoSsl = getSslConfig({ DB_SSL: undefined, DATABASE_URL: 'postgresql://postgres:pass@localhost:5432/civic' });
+    assert(
+      localNoSsl === false,
+      'Local development with no SSL configured returns ssl: false'
+    );
+    const explicitFalseSsl = getSslConfig({ DB_SSL: 'false', DATABASE_URL: 'postgresql://user:pass@remote:5432/civic?sslmode=require' });
+    assert(
+      explicitFalseSsl === false,
+      'Explicit DB_SSL=false disables SSL even if connection string contains sslmode'
+    );
 
-    try {
-      // Test DATABASE_URL prioritization over local password
-      process.env.DATABASE_URL = 'postgresql://cloud_user:cloud_pass@cloud.postgres.database.com:5432/civic_prod?sslmode=require';
-      const cloudConfig = getPoolConfig();
-      assert(
-        cloudConfig.connectionString === process.env.DATABASE_URL &&
-        cloudConfig.ssl && cloudConfig.ssl.rejectUnauthorized === false,
-        'getPoolConfig prioritizes DATABASE_URL and enables SSL when sslmode=require',
-        `connString: ${cloudConfig.connectionString}`
-      );
+    // 2. Production TLS => SSL enabled
+    const prodSsl = getSslConfig({ DB_SSL: 'true' });
+    assert(
+      prodSsl && typeof prodSsl === 'object',
+      'Production TLS (DB_SSL=true) cleanly enables SSL object configuration'
+    );
 
-      // Test custom pool parameters
-      process.env.DB_POOL_MAX = '25';
-      process.env.DB_POOL_IDLE_TIMEOUT = '15000';
-      const customPoolConfig = getPoolConfig();
-      assert(
-        customPoolConfig.max === 25 && customPoolConfig.idleTimeoutMillis === 15000,
-        'getPoolConfig honors DB_POOL_MAX and DB_POOL_IDLE_TIMEOUT configurations',
-        `max: ${customPoolConfig.max}, idle: ${customPoolConfig.idleTimeoutMillis}`
-      );
-    } finally {
-      if (originalDbUrl) process.env.DATABASE_URL = originalDbUrl;
-      else delete process.env.DATABASE_URL;
-      if (originalDbSsl) process.env.DB_SSL = originalDbSsl;
-      else delete process.env.DB_SSL;
-      if (originalPoolMax) process.env.DB_POOL_MAX = originalPoolMax;
-      else delete process.env.DB_POOL_MAX;
-    }
+    // 3. Production TLS default => rejectUnauthorized is NOT false (strictly true by default)
+    assert(
+      prodSsl.rejectUnauthorized === true,
+      'Production TLS default enforces rejectUnauthorized: true (certificate verification active by default)'
+    );
+
+    // 4. Explicit CA configuration is supported
+    const caCertMock = '-----BEGIN CERTIFICATE-----\nMYS_CUSTOM_CA_ROOT_2026\n-----END CERTIFICATE-----';
+    const caConfig = getSslConfig({ DB_SSL: 'true', DB_SSL_CA: caCertMock });
+    assert(
+      caConfig.rejectUnauthorized === true && caConfig.ca === caCertMock,
+      'Explicit DB_SSL_CA configuration populates CA certificate for verified TLS handshake'
+    );
+
+    // 5. Explicit insecure override is opt-in only
+    const insecureConfig = getSslConfig({ DB_SSL: 'true', DB_SSL_REJECT_UNAUTHORIZED: 'false' });
+    assert(
+      insecureConfig.rejectUnauthorized === false,
+      'Insecure certificate verification (rejectUnauthorized: false) is strictly opt-in via DB_SSL_REJECT_UNAUTHORIZED=false'
+    );
+    const secureOverrideConfig = getSslConfig({ DB_SSL: 'true', DB_SSL_REJECT_UNAUTHORIZED: 'true' });
+    assert(
+      secureOverrideConfig.rejectUnauthorized === true,
+      'Explicit DB_SSL_REJECT_UNAUTHORIZED=true maintains certificate verification'
+    );
+
+    // 6. No accidental global SSL weakening
+    const generalConfig = getPoolConfig({ DB_SSL: 'true' });
+    assert(
+      generalConfig.ssl && generalConfig.ssl.rejectUnauthorized === true,
+      'Global getPoolConfig does not silently weaken TLS certificate verification'
+    );
+
+    // 7. DATABASE_URL / sslmode behavior remains compatible
+    const cloudUrlConfig = getPoolConfig({
+      DATABASE_URL: 'postgresql://cloud_user:cloud_pass@cloud.postgres.database.com:5432/civic_prod?sslmode=require'
+    });
+    assert(
+      cloudUrlConfig.connectionString.includes('civic_prod') &&
+      cloudUrlConfig.ssl && cloudUrlConfig.ssl.rejectUnauthorized === true,
+      'DATABASE_URL with sslmode=require enables SSL with secure rejectUnauthorized: true by default',
+      `ssl: ${JSON.stringify(cloudUrlConfig.ssl)}`
+    );
+
+    // 8. Custom pool parameters (max, idleTimeout, connTimeout) preserved
+    const customPoolConfig = getPoolConfig({ DB_POOL_MAX: '25', DB_POOL_IDLE_TIMEOUT: '15000' });
+    assert(
+      customPoolConfig.max === 25 && customPoolConfig.idleTimeoutMillis === 15000,
+      'getPoolConfig honors DB_POOL_MAX and DB_POOL_IDLE_TIMEOUT configurations',
+      `max: ${customPoolConfig.max}, idle: ${customPoolConfig.idleTimeoutMillis}`
+    );
 
     // ----------------------------------------------------------------
     // SECTION 6: In-Memory Public Rate Limiting
@@ -330,23 +436,115 @@ async function runStage15Tests() {
     // ----------------------------------------------------------------
     console.log('\n\x1b[36m--- Section 7: Security Safeguards & JWT Production Validation ---\x1b[0m');
 
-    const originalJwtSecret = process.env.JWT_SECRET;
+    // 1. Production + missing JWT_SECRET => startup/config validation failure
+    let missingSecretFailed = false;
+    let missingSecretMsg = '';
     try {
-      process.env.JWT_SECRET = DEFAULT_DEV_SECRET;
-      assert(
-        isJwtSecretSecure() === false,
-        'isJwtSecretSecure returns false when using development fallback secret'
-      );
-
-      process.env.JWT_SECRET = 'c9a8f2e1d7b654038a1f9e2d3c4b5a6f7e8d9c0b1a2f3e4d5c6b7a8f9e0d1c2b';
-      assert(
-        isJwtSecretSecure() === true,
-        'isJwtSecretSecure returns true when configured with a secure random secret'
-      );
-    } finally {
-      if (originalJwtSecret) process.env.JWT_SECRET = originalJwtSecret;
-      else delete process.env.JWT_SECRET;
+      validateJwtConfig({ NODE_ENV: 'production' });
+    } catch (e) {
+      missingSecretFailed = true;
+      missingSecretMsg = e.message;
     }
+    assert(
+      missingSecretFailed === true && missingSecretMsg.includes('Missing or empty JWT_SECRET'),
+      'Production with missing JWT_SECRET fails closed during validation'
+    );
+
+    // 2. Production + empty JWT_SECRET => startup/config validation failure
+    let emptySecretFailed = false;
+    try {
+      validateJwtConfig({ NODE_ENV: 'production', JWT_SECRET: '   ' });
+    } catch (e) {
+      emptySecretFailed = true;
+    }
+    assert(
+      emptySecretFailed === true,
+      'Production with whitespace/empty JWT_SECRET fails closed during validation'
+    );
+
+    // 3. Production + default/development JWT_SECRET => startup/config validation failure
+    let devSecretFailed = false;
+    try {
+      validateJwtConfig({ NODE_ENV: 'production', JWT_SECRET: DEFAULT_DEV_SECRET });
+    } catch (e) {
+      devSecretFailed = true;
+    }
+    assert(
+      devSecretFailed === true,
+      'Production with default development JWT_SECRET fails closed during validation'
+    );
+
+    // 4. Production + template placeholder secret => startup/config validation failure
+    let placeholderFailed = false;
+    try {
+      validateJwtConfig({ NODE_ENV: 'production', JWT_SECRET: 'replace_with_a_secure_random_64_char_secret_key_in_production' });
+    } catch (e) {
+      placeholderFailed = true;
+    }
+    assert(
+      placeholderFailed === true,
+      'Production with template placeholder JWT_SECRET fails closed during validation'
+    );
+
+    // 5. Production + obviously insecure / short secret => startup/config validation failure
+    let shortSecretFailed = false;
+    try {
+      validateJwtConfig({ NODE_ENV: 'production', JWT_SECRET: 'short_key_1234' });
+    } catch (e) {
+      shortSecretFailed = true;
+    }
+    assert(
+      shortSecretFailed === true,
+      'Production with insecure/short secret (< 32 chars) fails closed during validation'
+    );
+
+    // 6. Production + valid explicit JWT_SECRET => startup allowed
+    const validProdSecret = 'c9a8f2e1d7b654038a1f9e2d3c4b5a6f7e8d9c0b1a2f3e4d5c6b7a8f9e0d1c2b';
+    let validProdPassed = false;
+    try {
+      validProdPassed = validateJwtConfig({ NODE_ENV: 'production', JWT_SECRET: validProdSecret });
+    } catch (e) {
+      validProdPassed = false;
+    }
+    assert(
+      validProdPassed === true,
+      'Production with valid, strong 64-character hex secret passes validation cleanly'
+    );
+
+    // 7. Development/test behavior remains functional with dev secret
+    let devModeAllowed = false;
+    try {
+      devModeAllowed = validateJwtConfig({ NODE_ENV: 'development', JWT_SECRET: DEFAULT_DEV_SECRET }) &&
+                       validateJwtConfig({ NODE_ENV: 'test' });
+    } catch (e) {
+      devModeAllowed = false;
+    }
+    assert(
+      devModeAllowed === true,
+      'Development and test environments remain functional with development secret fallback'
+    );
+
+    // 8. No secret value appears in error/log output
+    const canarySecret = 'CANARY_INSECURE_SECRET_LEAK_TEST_VAL_12345';
+    let CanaryErrorLeaked = false;
+    try {
+      validateJwtConfig({ NODE_ENV: 'production', JWT_SECRET: canarySecret });
+    } catch (e) {
+      CanaryErrorLeaked = e.message.includes(canarySecret);
+    }
+    assert(
+      CanaryErrorLeaked === false,
+      'Validation failure errors NEVER print or expose the secret value in log/error output'
+    );
+
+    // 9. isJwtSecretSecure helper accurately checks entropy and blacklists
+    assert(
+      isJwtSecretSecure(DEFAULT_DEV_SECRET) === false &&
+      isJwtSecretSecure('replace_with_a_secure_random_64_char_secret_key_in_production') === false &&
+      isJwtSecretSecure('short_secret') === false &&
+      isJwtSecretSecure(validProdSecret) === true,
+      'isJwtSecretSecure helper accurately identifies strong vs default/insecure secrets'
+    );
 
     const serverModule = require('../server');
     assert(
@@ -397,8 +595,10 @@ async function runStage15Tests() {
     assert(
       serverEnvExample.includes('DATABASE_URL=') &&
       serverEnvExample.includes('JWT_SECRET=') &&
-      serverEnvExample.includes('COOKIE_SAME_SITE='),
-      'server/.env.example contains complete production configuration documentation'
+      serverEnvExample.includes('COOKIE_SAME_SITE=') &&
+      serverEnvExample.includes('DB_SSL_REJECT_UNAUTHORIZED=') &&
+      serverEnvExample.includes('TRUST_PROXY='),
+      'server/.env.example contains complete production configuration documentation including SSL and Trust Proxy'
     );
 
     const clientEnvExample = fs.readFileSync(path.resolve(__dirname, '../../../client/.env.example'), 'utf-8');

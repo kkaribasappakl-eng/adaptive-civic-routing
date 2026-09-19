@@ -16,8 +16,8 @@ const createRateLimiter = (options = {}) => {
       return next();
     }
 
-    const clientIp = req.headers['x-forwarded-for']?.split(',')[0].trim() ||
-                     req.ip ||
+    const clientIp = req.ip ||
+                     req.socket?.remoteAddress ||
                      req.connection?.remoteAddress ||
                      'unknown';
 
