@@ -7,13 +7,14 @@ import ComplaintForm from './components/ComplaintForm';
 import ComplaintFeed from './components/ComplaintFeed';
 import RoutingView from './components/RoutingView';
 import ReviewWorkspace from './components/ReviewWorkspace';
+import AnalyticsDashboard from './components/AnalyticsDashboard';
 import CaseTrackerModal from './components/CaseTrackerModal';
 import { checkApiHealth, getDatabaseSystemStatus } from './services/api';
 import socket from './services/socket';
 import { Compass, Database, Layers, ShieldCheck, FileText, Radio, CheckCircle2, Cpu } from 'lucide-react';
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState('complaints'); // 'complaints' | 'routing' | 'review' | 'jurisdictions'
+  const [activeTab, setActiveTab] = useState('complaints'); // 'complaints' | 'routing' | 'review' | 'jurisdictions' | 'analytics'
   const [apiHealth, setApiHealth] = useState(null);
   const [dbStatus, setDbStatus] = useState(null);
   const [socketConnected, setSocketConnected] = useState(socket.connected);
@@ -151,9 +152,14 @@ export default function App() {
           /* STAGE 9 — OPERATOR REVIEW & HUMAN-IN-THE-LOOP       */
           /* =================================================== */
           <ReviewWorkspace onSelectComplaint={(id) => setTrackingComplaintId(id)} />
+        ) : activeTab === 'analytics' ? (
+          /* =================================================== */
+          /* STAGE 11 — OPERATIONAL ANALYTICS & ROUTING DASHBOARD*/
+          /* =================================================== */
+          <AnalyticsDashboard />
         ) : (
           /* =================================================== */
-          /* STAGES 2 & 3 — GIS FOUNDATION & JURISDICTIONS       */
+          /* STAGES 2, 3 & 10 — GIS FOUNDATION & JURISDICTIONS   */
           /* =================================================== */
           <div className="space-y-6">
             <SystemStatus
@@ -195,7 +201,7 @@ export default function App() {
 
       {/* Civic Footer */}
       <footer className="border-t border-slate-900 bg-slate-950/80 px-6 py-4 text-center text-xs text-slate-500">
-        Adaptive Civic Routing Intelligence System • HackMysuru Sub-Problem: Routing • Stage 10: Jurisdiction Boundary Update & Safe Version Management
+        Adaptive Civic Routing Intelligence System • HackMysuru Sub-Problem: Routing • Stage 11: Operational Analytics & Routing Intelligence Dashboard
       </footer>
     </div>
   );

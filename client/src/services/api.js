@@ -827,6 +827,160 @@ export const getReviewAuthorities = async () => {
   }
 };
 
+/**
+ * Stage 11: Operational Analytics & Routing Intelligence Endpoints
+ */
+
+export const getAnalyticsOverview = async (params = {}) => {
+  try {
+    const response = await api.get('/analytics/overview', { params });
+    return {
+      success: true,
+      data: response.data.data
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: error.response?.data?.error || error.message
+    };
+  }
+};
+
+export const getAnalyticsTrends = async (params = {}) => {
+  try {
+    const response = await api.get('/analytics/trends', { params });
+    return {
+      success: true,
+      data: response.data.data
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: error.response?.data?.error || error.message
+    };
+  }
+};
+
+export const getAnalyticsCategories = async (params = {}) => {
+  try {
+    const response = await api.get('/analytics/categories', { params });
+    return {
+      success: true,
+      data: response.data.data
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: error.response?.data?.error || error.message
+    };
+  }
+};
+
+export const getAnalyticsAuthorities = async (params = {}) => {
+  try {
+    const response = await api.get('/analytics/authorities', { params });
+    return {
+      success: true,
+      data: response.data.data
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: error.response?.data?.error || error.message
+    };
+  }
+};
+
+export const getAnalyticsDepartments = async (params = {}) => {
+  try {
+    const response = await api.get('/analytics/departments', { params });
+    return {
+      success: true,
+      data: response.data.data
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: error.response?.data?.error || error.message
+    };
+  }
+};
+
+export const getAnalyticsRouting = async (params = {}) => {
+  try {
+    const response = await api.get('/analytics/routing', { params });
+    return {
+      success: true,
+      data: response.data.data
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: error.response?.data?.error || error.message
+    };
+  }
+};
+
+export const getAnalyticsSla = async (params = {}) => {
+  try {
+    const response = await api.get('/analytics/sla', { params });
+    return {
+      success: true,
+      data: response.data.data
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: error.response?.data?.error || error.message
+    };
+  }
+};
+
+export const getAnalyticsReviews = async (params = {}) => {
+  try {
+    const response = await api.get('/analytics/reviews', { params });
+    return {
+      success: true,
+      data: response.data.data
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: error.response?.data?.error || error.message
+    };
+  }
+};
+
+export const getAnalyticsJurisdictions = async (params = {}) => {
+  try {
+    const response = await api.get('/analytics/jurisdictions', { params });
+    return {
+      success: true,
+      data: response.data.data
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: error.response?.data?.error || error.message
+    };
+  }
+};
+
+export const getAnalyticsSpatial = async (params = {}) => {
+  try {
+    const response = await api.get('/analytics/spatial', { params });
+    return {
+      success: true,
+      data: response.data.data
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: error.response?.data?.error || error.message
+    };
+  }
+};
+
 export default api;
 
 

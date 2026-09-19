@@ -12,6 +12,7 @@ const routingRoutes = require('./routes/routingRoutes');
 const slaRoutes = require('./routes/slaRoutes');
 const notificationRoutes = require('./routes/notificationRoutes');
 const reviewRoutes = require('./routes/reviewRoutes');
+const analyticsRoutes = require('./routes/analyticsRoutes');
 const { notFoundHandler, errorHandler } = require('./middleware/errorMiddleware');
 
 const app = express();
@@ -52,13 +53,14 @@ app.use('/api/routing', routingRoutes);
 app.use('/api/sla', slaRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/reviews', reviewRoutes);
+app.use('/api/analytics', analyticsRoutes);
 
 // Root informational endpoint
 app.get('/', (req, res) => {
   res.status(200).json({
     project: 'Adaptive Civic Routing Intelligence System',
     subProblem: 'Routing',
-    stage: 9,
+    stage: 11,
     status: 'online',
     endpoints: {
       health: '/api/health',
@@ -69,7 +71,8 @@ app.get('/', (req, res) => {
       routing: '/api/routing/decisions',
       sla: '/api/sla/overview',
       notifications: '/api/notifications',
-      reviews: '/api/reviews'
+      reviews: '/api/reviews',
+      analytics: '/api/analytics/overview'
     }
   });
 });

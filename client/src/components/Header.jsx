@@ -15,11 +15,11 @@ export default function Header({ socketConnected, apiHealthy, activeTab = 'compl
             <h1 className="text-xl font-bold tracking-tight text-white flex items-center gap-2">
               Adaptive Civic Routing Intelligence System
               <span className="text-xs uppercase font-mono px-2 py-0.5 rounded bg-civic-500/10 text-civic-400 border border-civic-500/20">
-                Stage 10
+                Stage 11
               </span>
             </h1>
             <p className="text-xs text-slate-400 font-medium">
-              HackMysuru • Jurisdiction Boundary & Safe Version Management
+              HackMysuru • Operational Analytics & Routing Intelligence
             </p>
           </div>
         </div>
@@ -66,6 +66,16 @@ export default function Header({ socketConnected, apiHealthy, activeTab = 'compl
               }`}
             >
               Jurisdiction Manager (Stage 10)
+            </button>
+            <button
+              onClick={() => onTabChange && onTabChange('analytics')}
+              className={`px-3 py-1.5 rounded-md font-semibold transition ${
+                activeTab === 'analytics'
+                  ? 'bg-purple-600/30 text-purple-300 border border-purple-500/40 shadow-sm'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+            >
+              Analytics Dashboard (Stage 11)
             </button>
           </nav>
 
