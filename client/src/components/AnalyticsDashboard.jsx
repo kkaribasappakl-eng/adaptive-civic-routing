@@ -1,5 +1,53 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { MapContainer, TileLayer, CircleMarker, Popup } from 'react-leaflet';
+import { MapContainer, TileLayer, CircleMarker, Popup, useMap } from 'react-leaflet';
+import L from 'leaflet';
+
+// Fix default Leaflet icon paths in Vite bundles
+delete L.Icon.Default.prototype._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
+  iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+  shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+});
+
+// Map auto-invalidator to prevent gray tiles on mount
+function MapInvalidator() {
+  const map = useMap();
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      map.invalidateSize();
+    }, 150);
+    return () => clearTimeout(timer);
+  }, [map]);
+  return null;
+}
+
+// Auto-fit / re-center to real complaint coordinates when available
+function MapAutoBounds({ points }) {
+  const map = useMap();
+  const hasFittedRef = useRef(false);
+
+  useEffect(() => {
+    if (hasFittedRef.current || !points || points.length === 0) return;
+    const validCoords = points
+      .filter(p => p.latitude && p.longitude && !isNaN(p.latitude) && !isNaN(p.longitude))
+      .map(p => [parseFloat(p.latitude), parseFloat(p.longitude)]);
+
+    if (validCoords.length > 0) {
+      try {
+        const bounds = L.latLngBounds(validCoords);
+        if (bounds.isValid()) {
+          map.fitBounds(bounds, { padding: [30, 30], maxZoom: 14 });
+          hasFittedRef.current = true;
+        }
+      } catch (e) {
+        // Fallback to center
+      }
+    }
+  }, [points, map]);
+
+  return null;
+}
 import { 
   BarChart3, 
   TrendingUp, 
@@ -976,9 +1024,11 @@ export default function AnalyticsDashboard() {
                 scrollWheelZoom={false}
               >
                 <TileLayer
-                  attribution='&copy; <a href="https://carto.com/">CartoDB</a>'
-                  url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
+                  attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                 />
+                <MapInvalidator />
+                <MapAutoBounds points={spatialData?.complaintPoints} />
 
                 {/* Spatial Complaint Points */}
                 {spatialData?.complaintPoints && spatialData.complaintPoints
