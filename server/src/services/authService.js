@@ -4,7 +4,17 @@ const { pool } = require('../config/db');
 
 const BCRYPT_ROUNDS = 10;
 const JWT_EXPIRES_IN = '24h';
-const JWT_SECRET = process.env.JWT_SECRET || 'dev_stage_1_super_secret_jwt_key_12345';
+const DEFAULT_DEV_SECRET = 'dev_stage_1_super_secret_jwt_key_12345';
+const JWT_SECRET = process.env.JWT_SECRET || DEFAULT_DEV_SECRET;
+
+const isJwtSecretSecure = () => {
+  return Boolean(process.env.JWT_SECRET && process.env.JWT_SECRET !== DEFAULT_DEV_SECRET);
+};
+
+if (process.env.NODE_ENV === 'production' && !isJwtSecretSecure()) {
+  console.warn('\n⚠️ [SECURITY WARNING] Server running in production mode with default/missing JWT_SECRET!');
+  console.warn('⚠️ Set a secure random JWT_SECRET in server environment variables.\n');
+}
 
 const CONTROLLED_ROLES = ['CITIZEN', 'OPERATOR', 'ADMIN'];
 
@@ -290,5 +300,7 @@ module.exports = {
   login,
   demoLogin,
   provisionUserByAdmin,
-  getUserById
+  getUserById,
+  DEFAULT_DEV_SECRET,
+  isJwtSecretSecure
 };

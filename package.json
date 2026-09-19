@@ -4,6 +4,9 @@
   "private": true,
   "description": "Adaptive Civic Routing Intelligence System - HackMysuru Routing Sub-Problem",
   "scripts": {
+    "start": "npm --prefix server start",
+    "build": "npm --prefix client run build",
+    "test": "node server/src/scripts/testStage15.js",
     "dev:server": "npm --prefix server run dev",
     "dev:client": "npm --prefix client run dev",
     "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",

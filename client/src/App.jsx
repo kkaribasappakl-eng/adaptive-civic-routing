@@ -12,6 +12,7 @@ import AuditLogDashboard from './components/AuditLogDashboard';
 import CaseTrackerModal from './components/CaseTrackerModal';
 import AuthModal from './components/AuthModal';
 import AccessGuard from './components/AccessGuard';
+import ErrorBoundary from './components/ErrorBoundary';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { checkApiHealth, getDatabaseSystemStatus } from './services/api';
 import socket from './services/socket';
@@ -260,7 +261,7 @@ function AppContent() {
 
       {/* Civic Footer */}
       <footer className="border-t border-slate-900 bg-slate-950/80 px-6 py-4 text-center text-xs text-slate-500">
-        Adaptive Civic Routing Intelligence System • HackMysuru Sub-Problem: Routing • Stage 14: Production-Quality Civic Workflow Completion
+        Adaptive Civic Routing Intelligence System • HackMysuru Sub-Problem: Routing • Stage 15: Production Readiness & Deployment Preparation
       </footer>
     </div>
   );
@@ -268,8 +269,10 @@ function AppContent() {
 
 export default function App() {
   return (
-    <AuthProvider>
-      <AppContent />
-    </AuthProvider>
+    <ErrorBoundary>
+      <AuthProvider>
+        <AppContent />
+      </AuthProvider>
+    </ErrorBoundary>
   );
 }

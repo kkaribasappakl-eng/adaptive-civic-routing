@@ -21,6 +21,21 @@ export const setAuthToken = (token) => {
 };
 
 /**
+ * Resolves media/upload URLs dynamically in both local dev and production deployments
+ */
+export const getMediaUrl = (relativePath) => {
+  if (!relativePath) return '';
+  if (relativePath.startsWith('http://') || relativePath.startsWith('https://') || relativePath.startsWith('data:')) {
+    return relativePath;
+  }
+  const cleanPath = relativePath.startsWith('/') ? relativePath : `/${relativePath}`;
+  const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:4000/api';
+  const backendRoot = apiUrl.replace(/\/api\/?$/, '');
+  return `${backendRoot}${cleanPath}`;
+};
+
+
+/**
  * Fetch health status from backend API
  */
 export const checkApiHealth = async () => {

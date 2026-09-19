@@ -12,44 +12,50 @@ let dbStatus = {
 };
 
 const getPoolConfig = () => {
+  const max = parseInt(process.env.DB_POOL_MAX || '10', 10);
+  const idleTimeoutMillis = parseInt(process.env.DB_POOL_IDLE_TIMEOUT || '10000', 10);
+  const connectionTimeoutMillis = parseInt(process.env.DB_POOL_CONN_TIMEOUT || '3000', 10);
+
+  const useSsl = process.env.DB_SSL === 'true' || 
+                 Boolean(process.env.DATABASE_URL && process.env.DATABASE_URL.includes('sslmode=require'));
+  const ssl = useSsl ? { rejectUnauthorized: false } : false;
+
+  // Cloud deployment prioritization: If DATABASE_URL is explicitly set, use it first
+  if (process.env.DATABASE_URL && process.env.DATABASE_URL.trim() !== '') {
+    const config = {
+      connectionString: process.env.DATABASE_URL.trim(),
+      connectionTimeoutMillis,
+      idleTimeoutMillis,
+      max
+    };
+    if (useSsl) {
+      config.ssl = ssl;
+    }
+    return config;
+  }
+
   const host = process.env.DB_HOST || 'localhost';
   const port = parseInt(process.env.DB_PORT || '5432', 10);
   const database = process.env.DB_NAME || 'adaptive_civic_routing';
   const user = process.env.DB_USER || 'postgres';
-  const password = process.env.DB_PASSWORD;
+  const password = process.env.DB_PASSWORD !== undefined ? String(process.env.DB_PASSWORD) : '';
 
-  if (password !== undefined && password !== '') {
-    return {
-      host,
-      port,
-      database,
-      user,
-      password: String(password),
-      connectionTimeoutMillis: 3000,
-      idleTimeoutMillis: 10000,
-      max: 10
-    };
-  }
-
-  if (process.env.DATABASE_URL) {
-    return {
-      connectionString: process.env.DATABASE_URL,
-      connectionTimeoutMillis: 3000,
-      idleTimeoutMillis: 10000,
-      max: 10
-    };
-  }
-
-  return {
+  const config = {
     host,
     port,
     database,
     user,
-    password: '',
-    connectionTimeoutMillis: 3000,
-    idleTimeoutMillis: 10000,
-    max: 10
+    password,
+    connectionTimeoutMillis,
+    idleTimeoutMillis,
+    max
   };
+
+  if (useSsl) {
+    config.ssl = ssl;
+  }
+
+  return config;
 };
 
 try {
@@ -131,5 +137,6 @@ const getDbStatus = () => dbStatus;
 module.exports = {
   pool,
   checkDatabaseHealth,
-  getDbStatus
+  getDbStatus,
+  getPoolConfig
 };

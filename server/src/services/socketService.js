@@ -12,10 +12,28 @@ const parseCookieToken = (cookieString) => {
   return match ? decodeURIComponent(match[1]) : null;
 };
 
+const parseOrigins = (originInput) => {
+  if (!originInput) return ["http://localhost:5173"];
+  if (Array.isArray(originInput)) return originInput.map(o => String(o).trim().replace(/\/+$/, '')).filter(Boolean);
+  return String(originInput)
+    .split(',')
+    .map(o => o.trim().replace(/\/+$/, ''))
+    .filter(Boolean);
+};
+
 const initSocketIO = (httpServer, clientOrigin) => {
+  const allowed = parseOrigins(clientOrigin || process.env.CLIENT_URL);
+
   io = new Server(httpServer, {
     cors: {
-      origin: clientOrigin || "http://localhost:5173",
+      origin: (origin, callback) => {
+        if (!origin) return callback(null, true);
+        const normalized = origin.replace(/\/+$/, '');
+        if (allowed.includes(normalized) || allowed.includes('*')) {
+          return callback(null, true);
+        }
+        return callback(new Error(`Origin '${origin}' not permitted by Socket.IO CORS`));
+      },
       methods: ["GET", "POST"],
       credentials: true
     }

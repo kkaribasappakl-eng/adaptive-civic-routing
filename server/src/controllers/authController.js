@@ -1,13 +1,23 @@
 const authService = require('../services/authService');
 const auditService = require('../services/auditService');
 
-const setAuthCookie = (res, token) => {
-  res.cookie('token', token, {
+const getCookieOptions = () => {
+  const isProd = process.env.NODE_ENV === 'production';
+  const sameSite = process.env.COOKIE_SAME_SITE || (isProd ? 'none' : 'lax');
+  const secure = process.env.COOKIE_SECURE !== undefined 
+    ? process.env.COOKIE_SECURE === 'true' 
+    : (isProd || sameSite === 'none');
+
+  return {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
+    secure,
+    sameSite,
     maxAge: 24 * 60 * 60 * 1000 // 24 hours
-  });
+  };
+};
+
+const setAuthCookie = (res, token) => {
+  res.cookie('token', token, getCookieOptions());
 };
 
 /**
@@ -169,10 +179,11 @@ const logout = async (req, res) => {
     request: req
   });
 
+  const cookieOpts = getCookieOptions();
   res.clearCookie('token', {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax'
+    httpOnly: cookieOpts.httpOnly,
+    secure: cookieOpts.secure,
+    sameSite: cookieOpts.sameSite
   });
   res.status(200).json({
     success: true,
@@ -227,5 +238,6 @@ module.exports = {
   demoLogin,
   getMe,
   logout,
-  provisionUser
+  provisionUser,
+  getCookieOptions
 };

@@ -34,7 +34,8 @@ import {
   markReviewUnroutable,
   getReviewActions,
   getReviewAuthorities,
-  getJurisdictionBoundaries
+  getJurisdictionBoundaries,
+  getMediaUrl
 } from '../services/api';
 import socket from '../services/socket';
 
@@ -688,7 +689,7 @@ export default function ReviewWorkspace({ onSelectComplaint }) {
                       </span>
                       {caseData.complaint.photo_url ? (
                         <img
-                          src={caseData.complaint.photo_url.startsWith('http') ? caseData.complaint.photo_url : `http://localhost:4000${caseData.complaint.photo_url}`}
+                          src={getMediaUrl(caseData.complaint.photo_url)}
                           alt="Evidence"
                           className="h-28 w-full object-cover rounded-lg border border-slate-800"
                         />

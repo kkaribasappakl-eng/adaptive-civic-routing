@@ -17,18 +17,44 @@ const reviewRoutes = require('./routes/reviewRoutes');
 const analyticsRoutes = require('./routes/analyticsRoutes');
 const auditRoutes = require('./routes/auditRoutes');
 const { notFoundHandler, errorHandler } = require('./middleware/errorMiddleware');
+const { publicIntakeLimiter, aiClassifyLimiter, gisProbeLimiter } = require('./middleware/rateLimitMiddleware');
 
 const app = express();
+
+// Trust reverse proxy (Render, AWS ALB, Cloudflare, Nginx) so req.ip and req.secure are accurate
+const trustProxyVal = process.env.TRUST_PROXY !== undefined
+  ? (isNaN(process.env.TRUST_PROXY) ? process.env.TRUST_PROXY : parseInt(process.env.TRUST_PROXY, 10))
+  : 1;
+app.set('trust proxy', trustProxyVal);
 
 // Security headers with Helmet (configured to allow cross-origin image loading for uploads)
 app.use(helmet({
   crossOriginResourcePolicy: { policy: "cross-origin" }
 }));
 
-// CORS configuration restricted to frontend URL
-const allowedOrigin = process.env.CLIENT_URL || 'http://localhost:5173';
+// Multi-origin CORS parser supporting comma-separated list and trailing-slash stripping
+const parseAllowedOrigins = (originInput) => {
+  const envVal = originInput !== undefined ? originInput : (process.env.CLIENT_URL || 'http://localhost:5173');
+  if (Array.isArray(envVal)) {
+    return envVal.map(o => String(o).trim().replace(/\/+$/, '')).filter(Boolean);
+  }
+  return String(envVal)
+    .split(',')
+    .map(o => o.trim().replace(/\/+$/, ''))
+    .filter(Boolean);
+};
+
+const allowedOrigins = parseAllowedOrigins();
 app.use(cors({
-  origin: allowedOrigin,
+  origin: (origin, callback) => {
+    // Allow non-browser requests or same-origin requests where origin header is absent
+    if (!origin) return callback(null, true);
+    const normalized = origin.replace(/\/+$/, '');
+    if (allowedOrigins.includes(normalized) || allowedOrigins.includes('*')) {
+      return callback(null, true);
+    }
+    return callback(new Error(`Origin '${origin}' not permitted by CORS policy`));
+  },
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true
@@ -49,6 +75,11 @@ app.use('/uploads', express.static(path.resolve(__dirname, '../uploads')));
 app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 
+// Apply production rate limiters on public intake & probe routes
+app.use('/api/gis/test', gisProbeLimiter);
+app.use('/api/complaints/classify', aiClassifyLimiter);
+app.use('/api/complaints', publicIntakeLimiter);
+
 // Core API Routes
 app.use('/api', healthRoutes);
 app.use('/api/auth', authRoutes);
@@ -68,10 +99,13 @@ app.get('/', (req, res) => {
   res.status(200).json({
     project: 'Adaptive Civic Routing Intelligence System',
     subProblem: 'Routing',
-    stage: 11,
-    status: 'online',
+    stage: 15,
+    status: 'production-ready',
+    environment: process.env.NODE_ENV || 'development',
     endpoints: {
       health: '/api/health',
+      liveness: '/api/health/live',
+      readiness: '/api/health/ready',
       database: '/api/system/database',
       gisTest: '/api/gis/test?lat=12.2958&lng=76.6394',
       jurisdictions: '/api/jurisdictions/versions',
@@ -80,7 +114,8 @@ app.get('/', (req, res) => {
       sla: '/api/sla/overview',
       notifications: '/api/notifications',
       reviews: '/api/reviews',
-      analytics: '/api/analytics/overview'
+      analytics: '/api/analytics/overview',
+      audit: '/api/audit'
     }
   });
 });
@@ -90,3 +125,4 @@ app.use(notFoundHandler);
 app.use(errorHandler);
 
 module.exports = app;
+module.exports.parseAllowedOrigins = parseAllowedOrigins;
