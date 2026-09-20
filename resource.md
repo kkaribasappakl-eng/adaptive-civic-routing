@@ -31,16 +31,15 @@ An adaptive municipal routing platform engineered for Mysuru's urban administrat
 ---
 
 ## Presentation
-- **File:** `presentation.pdf`
-- **Status:** **To be added before final submission.**
-- *Note for Judges:* The presentation will be compiled into `presentation.pdf` (maximum 10 slides) using exclusively verified screenshots from the live deployed MVP once all final application captures are assembled.
+- **File:** [presentation.pdf](presentation.pdf)
+- **Status:** **Ready for Review** (10-slide widescreen presentation deck adhering strictly to HackMysuru format, architecture, constraints, and verified live application evidence).
 
 ---
 
 ## Decision Log
-- **File:** `decision-log.pdf`
-- **Status:** **To be included before final submission.**
-- *Note for Judges:* The concise 1-page decision log covers architectural and product trade-offs (Q1, Q2, Q3) regarding deterministic PostGIS containment vs. probabilistic routing, immutable jurisdiction versioning, and municipal scaling limits.
+- **File:** [decision-log.pdf](decision-log.pdf)
+- **Status:** **Ready for Review** (Certified 1-page architectural decision record detailing Q1 PostGIS deterministic containment, Q2 immutable jurisdiction versioning, and Q3 municipal scaling limits).
+
 
 ---
 

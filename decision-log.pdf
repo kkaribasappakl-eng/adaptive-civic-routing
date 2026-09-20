@@ -1,0 +1,122 @@
+%PDF-1.4
+%xE2xE3xCFxD3
+1 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
+endobj
+2 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>
+endobj
+3 0 obj
+<< /Length 7391 >>
+stream
+q
+0.031 0.047 0.078 rg 0 0 595 842 re f
+0.067 0.102 0.165 rg 30 740 535 72 re f
+0.145 0.388 0.922 RG 1 w 30 740 535 72 re S
+1.0 1.0 1.0 rg BT /F2 16 Tf 45 785 Td (Adaptive Civic Routing Intelligence System) Tj ET
+0.145 0.65 0.95 rg BT /F2 9.5 Tf 45 769 Td (ARCHITECTURAL DECISION RECORD \\(ADR\\) - HACKMYSURU 1.0 - ROUTING) Tj ET
+0.58 0.64 0.72 rg BT /F1 8 Tf 45 751 Td (Team Spark | ID: HM26-E9C5 | Single-Page Architectural Ledger) Tj ET
+0.145 0.388 0.922 rg 425 780 125 18 re f
+1.0 1.0 1.0 rg BT /F2 8 Tf 435 785 Td (LIVE MVP DEPLOYED) Tj ET
+0.58 0.64 0.72 rg BT /F1 7 Tf 395 751 Td (adaptive-civic-routing.vercel.app) Tj ET
+0.05 0.08 0.14 rg 30 710 535 22 re f
+0.2 0.4 0.8 RG 0.5 w 30 710 535 22 re S
+0.2 0.7 1.0 rg BT /F2 7.5 Tf 40 717 Td (Core Principle:) Tj ET
+0.85 0.9 1.0 rg BT /F1 7.5 Tf 105 717 Td (AI assists issue categorization; PostGIS and relational rules strictly decide legal jurisdiction & department.) Tj ET
+0.055 0.082 0.137 rg 30 505 535 185 re f
+0.12 0.18 0.28 RG 1 w 30 505 535 185 re S
+0.145 0.388 0.922 rg 40 668 80 15 re f
+1.0 1.0 1.0 rg BT /F2 8 Tf 45 672 Td (DECISION Q1) Tj ET
+1.0 1.0 1.0 rg BT /F2 10.5 Tf 130 671 Td (Deterministic PostGIS Containment vs. Probabilistic Routing) Tj ET
+0.12 0.18 0.28 RG 0.75 w 40 660 m 555 660 l S
+0.04 0.12 0.08 rg 42 590 245 62 re f
+0.1 0.5 0.25 RG 0.5 w 42 590 245 62 re S
+0.2 0.9 0.4 rg BT /F2 8 Tf 50 640 Td ([CHOSEN DECISION]) Tj ET
+0.85 0.95 0.85 rg BT /F1 7.2 Tf 50 627 Td (PostgreSQL 18 + PostGIS 3.6 spatial geometry engine. Complaints store SRID 4326 Point coordinates. Authority resolution executes deterministic ST_Covers against active ward MultiPolygons.) Tj ET
+0.14 0.06 0.06 rg 298 590 257 62 re f
+0.6 0.2 0.2 RG 0.5 w 298 590 257 62 re S
+1.0 0.4 0.4 rg BT /F2 8 Tf 306 640 Td ([REJECTED ALTERNATIVES]) Tj ET
+0.95 0.85 0.85 rg BT /F1 7.2 Tf 306 627 Td (1. Probabilistic LLM/NLP classification from complaint text \(hallucinates on border zones\). 2. Radial bounding boxes \(wards are non-convex\). 3. Reverse geocoding APIs \(lack municipal authority bounds\).) Tj ET
+0.08 0.12 0.20 rg 42 517 245 65 re f
+0.18 0.28 0.45 RG 0.5 w 42 517 245 65 re S
+0.4 0.7 1.0 rg BT /F2 8 Tf 50 569 Td (Why Approach Was Selected:) Tj ET
+0.8 0.85 0.95 rg BT /F1 7.2 Tf 50 556 Td (Municipal authority \(MCC vs. MUDA\) is governed by statutory legal boundaries. PostGIS geometric evaluation is 100% mathematically reproducible, eliminates hallucinations, and creates legally defensible civic audits.) Tj ET
+0.16 0.12 0.04 rg 298 517 257 65 re f
+0.7 0.5 0.15 RG 0.5 w 298 517 257 65 re S
+1.0 0.75 0.2 rg BT /F2 8 Tf 306 569 Td (Main Trade-off & Mitigation:) Tj ET
+0.95 0.9 0.8 rg BT /F1 7.2 Tf 306 556 Td (Requires maintaining verified GIS shapefiles in database. Coordinates outside mapped boundaries fail auto-routing and quarantine safely into the HUMAN_REVIEW queue for operator triage.) Tj ET
+0.055 0.082 0.137 rg 30 305 535 185 re f
+0.12 0.18 0.28 RG 1 w 30 305 535 185 re S
+0.145 0.388 0.922 rg 40 468 80 15 re f
+1.0 1.0 1.0 rg BT /F2 8 Tf 45 472 Td (DECISION Q2) Tj ET
+1.0 1.0 1.0 rg BT /F2 10.5 Tf 130 471 Td (Immutable Jurisdiction Versioning vs. Mutable Boundary Overwrites) Tj ET
+0.12 0.18 0.28 RG 0.75 w 40 460 m 555 460 l S
+0.04 0.12 0.08 rg 42 390 245 62 re f
+0.1 0.5 0.25 RG 0.5 w 42 390 245 62 re S
+0.2 0.9 0.4 rg BT /F2 8 Tf 50 440 Td ([CHOSEN DECISION]) Tj ET
+0.85 0.95 0.85 rg BT /F1 7.2 Tf 50 427 Td (Decouple ward boundaries into explicit lifecycle states \(DRAFT -> ACTIVE -> RETIRED\). New tickets route against MYS_2026_V2 \(ACTIVE\); past tickets remain locked to MYS_2026_V1 \(RETIRED\) via foreign key in routing_decisions.) Tj ET
+0.14 0.06 0.06 rg 298 390 257 62 re f
+0.6 0.2 0.2 RG 0.5 w 298 390 257 62 re S
+1.0 0.4 0.4 rg BT /F2 8 Tf 306 440 Td ([REJECTED ALTERNATIVES]) Tj ET
+0.95 0.85 0.85 rg BT /F1 7.2 Tf 306 427 Td (1. In-place polygon updates overwriting geometry coordinates directly. 2. Dynamically re-evaluating historical tickets against current boundaries. 3. Unversioned GIS layers lacking delimitation tracking.) Tj ET
+0.08 0.12 0.20 rg 42 317 245 65 re f
+0.18 0.28 0.45 RG 0.5 w 42 317 245 65 re S
+0.4 0.7 1.0 rg BT /F2 8 Tf 50 369 Td (Why Approach Was Selected:) Tj ET
+0.8 0.85 0.95 rg BT /F1 7.2 Tf 50 356 Td (Mysuru ward boundaries periodically delimit \(e.g. MCC expanding into MUDA sectors\). MYS_2026_V2 is active; past tickets under MYS_2026_V1 remain mathematically true to the day of routing, ensuring legal municipal provenance.) Tj ET
+0.16 0.12 0.04 rg 298 317 257 65 re f
+0.7 0.5 0.15 RG 0.5 w 298 317 257 65 re S
+1.0 0.75 0.2 rg BT /F2 8 Tf 306 369 Td (Main Trade-off & Mitigation:) Tj ET
+0.95 0.9 0.8 rg BT /F1 7.2 Tf 306 356 Td (Additional relational schema complexity and storage overhead to retain retired geometries. Mitigated by atomic version transition transactions \(deactivate old, activate new in one BEGIN...COMMIT block\).) Tj ET
+0.055 0.082 0.137 rg 30 105 535 185 re f
+0.12 0.18 0.28 RG 1 w 30 105 535 185 re S
+0.145 0.388 0.922 rg 40 268 80 15 re f
+1.0 1.0 1.0 rg BT /F2 8 Tf 45 272 Td (DECISION Q3) Tj ET
+1.0 1.0 1.0 rg BT /F2 10.5 Tf 130 271 Td (In-Database Spatial Routing & Municipal Scaling Architecture) Tj ET
+0.12 0.18 0.28 RG 0.75 w 40 260 m 555 260 l S
+0.04 0.12 0.08 rg 42 190 245 62 re f
+0.1 0.5 0.25 RG 0.5 w 42 190 245 62 re S
+0.2 0.9 0.4 rg BT /F2 8 Tf 50 240 Td ([CHOSEN DECISION]) Tj ET
+0.85 0.95 0.85 rg BT /F1 7.2 Tf 50 227 Td (Execute point-in-polygon containment synchronously inside PostgreSQL at complaint intake. Guarantees sub-50ms latency for Mysuru's 65 wards and ensures immediate transactional consistency and receipt generation.) Tj ET
+0.14 0.06 0.06 rg 298 190 257 62 re f
+0.6 0.2 0.2 RG 0.5 w 298 190 257 62 re S
+1.0 0.4 0.4 rg BT /F2 8 Tf 306 240 Td ([REJECTED ALTERNATIVES]) Tj ET
+0.95 0.85 0.85 rg BT /F1 7.2 Tf 306 227 Td (1. Client-side Turf.js evaluation \(leaks boundary data, vulnerable to client tampering\). 2. External GIS SaaS APIs \(introduces third-party per-request billing, internet failure points, breaks ACID transactions\).) Tj ET
+0.08 0.12 0.20 rg 42 117 245 65 re f
+0.18 0.28 0.45 RG 0.5 w 42 117 245 65 re S
+0.4 0.7 1.0 rg BT /F2 8 Tf 50 169 Td (Why Approach Was Selected:) Tj ET
+0.8 0.85 0.95 rg BT /F1 7.2 Tf 50 156 Td (In-database execution ensures ACID consistency at ticket creation \(POST /api/complaints\), eliminates external API failure points, and guarantees atomic binding without third-party dependencies.) Tj ET
+0.16 0.12 0.04 rg 298 117 257 65 re f
+0.7 0.5 0.15 RG 0.5 w 298 117 257 65 re S
+1.0 0.75 0.2 rg BT /F2 8 Tf 306 169 Td (Main Trade-off & Mitigation:) Tj ET
+0.95 0.9 0.8 rg BT /F1 7.2 Tf 306 156 Td (Concurrent spatial queries during civic storm events can burden database CPU. Roadmap: \(1\) Bounding-box pre-filter \(&&\); \(2\) Range table partitioning by fiscal year/version; \(3\) BullMQ async queue for peak spikes.) Tj ET
+0.12 0.18 0.28 RG 0.5 w 30 85 m 565 85 l S
+0.5 0.55 0.65 rg BT /F1 7 Tf 35 68 Td (HackMysuru 1.0 Phase 1 Decision Record | Team Spark (HM26-E9C5) | Project: Adaptive Civic Routing Intelligence System) Tj ET
+0.5 0.55 0.65 rg BT /F2 7 Tf 440 68 Td (Page 1 of 1 | Single-Page Architectural Ledger) Tj ET
+0.35 0.4 0.5 rg BT /F1 6.5 Tf 35 55 Td (All architectural decisions backed by PostgreSQL schemas, PostGIS spatial queries, and verified git commit history.) Tj ET
+Q
+
+endstream
+endobj
+4 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Contents 3 0 R /Resources << /Font << /F1 1 0 R /F2 2 0 R >> >> >>
+endobj
+5 0 obj
+<< /Type /Pages /Kids [4 0 R] /Count 1 >>
+endobj
+6 0 obj
+<< /Type /Catalog /Pages 5 0 R >>
+endobj
+xref
+0 7
+0000000000 65535 f 
+0000000023 00000 n 
+0000000093 00000 n 
+0000000168 00000 n 
+0000007611 00000 n 
+0000007747 00000 n 
+0000007804 00000 n 
+trailer
+<< /Size 7 /Root 1 0 R >>
+startxref
+7853
+%%EOF
