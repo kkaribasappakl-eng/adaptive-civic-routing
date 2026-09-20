@@ -34,13 +34,13 @@ const routeComplaintHandler = async (req, res, next) => {
  */
 const getComplaintRoutingHandler = async (req, res, next) => {
   try {
-    const { complaintId } = req.params;
+    const complaintId = req.params.complaintId || req.params.code || req.params.id;
     const decision = await routingService.getRoutingDecisionByComplaint(complaintId);
 
     if (!decision) {
       return res.status(404).json({
         success: false,
-        error: `No routing decision found for complaint '${complaintId}'. Complaint has not been routed yet.`
+        error: `Complaint '${complaintId}' not found.`
       });
     }
 
@@ -59,8 +59,8 @@ const getComplaintRoutingHandler = async (req, res, next) => {
  */
 const listRoutingDecisionsHandler = async (req, res, next) => {
   try {
-    const { limit, offset } = req.query;
-    const result = await routingService.getRoutingDecisionsList(limit, offset);
+    const { limit, offset, search } = req.query;
+    const result = await routingService.getRoutingDecisionsList(limit, offset, search);
 
     res.status(200).json({
       success: true,

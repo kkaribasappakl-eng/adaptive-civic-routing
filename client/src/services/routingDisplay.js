@@ -6,6 +6,11 @@
 export const isOutsideBoundaryDecision = (d) => {
   if (!d) return false;
 
+  const status = d.routing_status || d.routingStatus;
+  if (status === 'AWAITING_ROUTING') {
+    return false;
+  }
+
   // If a jurisdiction or authority exists, this decision is NOT outside boundaries
   const hasJurisdiction = Boolean(d.jurisdiction?.name || d.jurisdiction_name || d.jurisdiction_id || d.jurisdictionId);
   const hasAuthority = Boolean(d.authority?.name || d.authority_name || d.authority_id || d.authorityId);
@@ -26,7 +31,6 @@ export const isOutsideBoundaryDecision = (d) => {
 
   // If neither jurisdiction nor authority is stored in a HUMAN_REVIEW or UNROUTABLE decision,
   // this confirms there was no spatial jurisdiction match
-  const status = d.routing_status || d.routingStatus;
   if ((status === 'HUMAN_REVIEW' || status === 'UNROUTABLE') && !hasJurisdiction && !hasAuthority) {
     return true;
   }
@@ -36,6 +40,10 @@ export const isOutsideBoundaryDecision = (d) => {
 
 export const getDecisionAuthority = (d) => {
   if (!d) return 'None';
+  const status = d.routing_status || d.routingStatus;
+  if (status === 'AWAITING_ROUTING') {
+    return 'Awaiting Routing';
+  }
   if (d.authority?.name) return d.authority.name;
   if (d.authority_name) return d.authority_name;
   if (isOutsideBoundaryDecision(d)) {
@@ -46,9 +54,12 @@ export const getDecisionAuthority = (d) => {
 
 export const getDecisionDepartment = (d) => {
   if (!d) return 'Unassigned';
+  const status = d.routing_status || d.routingStatus;
+  if (status === 'AWAITING_ROUTING') {
+    return 'Pending Assignment';
+  }
   if (d.department?.name) return d.department.name;
   if (d.department_name) return d.department_name;
-  const status = d.routing_status || d.routingStatus;
   if (status === 'HUMAN_REVIEW' || status === 'UNROUTABLE' || isOutsideBoundaryDecision(d)) {
     return 'Human Review Queue';
   }
@@ -75,10 +86,13 @@ export const getDecisionReason = (d) => {
   if (reason && typeof reason === 'string' && reason.trim().length > 0) {
     return reason.trim();
   }
+  const status = d.routing_status || d.routingStatus;
+  if (status === 'AWAITING_ROUTING') {
+    return 'Complaint registered and awaiting routing assignment.';
+  }
   if (isOutsideBoundaryDecision(d)) {
     return 'Complaint coordinates are outside all configured jurisdiction boundaries. Flagged for human review.';
   }
-  const status = d.routing_status || d.routingStatus;
   if (status === 'HUMAN_REVIEW') {
     return 'Complaint flagged for human review.';
   }

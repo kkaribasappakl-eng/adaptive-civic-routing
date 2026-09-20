@@ -418,11 +418,13 @@ export const getComplaintRouting = async (complaintId) => {
  * Stage 5: Fetch list of recent routing decisions
  * GET /api/routing/decisions
  */
-export const getRoutingDecisions = async (limit = 20, offset = 0) => {
+export const getRoutingDecisions = async (limit = 20, offset = 0, search = null) => {
   try {
-    const response = await api.get('/routing/decisions', {
-      params: { limit, offset }
-    });
+    const params = { limit, offset };
+    if (search && typeof search === 'string' && search.trim().length > 0) {
+      params.search = search.trim();
+    }
+    const response = await api.get('/routing/decisions', { params });
     return {
       success: true,
       data: response.data.data,

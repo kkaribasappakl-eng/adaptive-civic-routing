@@ -15,6 +15,7 @@ export default function RoutingDecisionModal({ decision, complaint, onClose }) {
 
   const status = decision?.routing_status || decision?.routingStatus || 'PENDING';
   const isRouted = status === 'ROUTED';
+  const isAwaiting = status === 'AWAITING_ROUTING' || status === 'PENDING' || status === 'SUBMITTED';
   const isReview = status === 'HUMAN_REVIEW' || status === 'UNROUTABLE';
   const isOutside = isOutsideBoundaryDecision(decision);
 
@@ -25,7 +26,7 @@ export default function RoutingDecisionModal({ decision, complaint, onClose }) {
   const versionCode = getDecisionVersion(decision);
   const reasonText = getDecisionReason(decision);
   const formattedDate = getDecisionTimestamp(decision);
-  const routingMethod = decision?.routing_method || decision?.routingMethod || 'DETERMINISTIC_GIS';
+  const routingMethod = decision?.routing_method || decision?.routingMethod || (isAwaiting ? 'PENDING' : 'DETERMINISTIC_GIS');
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-in fade-in duration-200">
@@ -33,16 +34,26 @@ export default function RoutingDecisionModal({ decision, complaint, onClose }) {
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-800 bg-slate-950/40">
           <div className="flex items-center gap-3">
-            <div className={`p-2 rounded-lg ${isRouted ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30' : 'bg-amber-500/10 text-amber-400 border border-amber-500/30'}`}>
-              {isRouted ? <CheckCircle2 className="w-5 h-5" /> : <AlertTriangle className="w-5 h-5" />}
+            <div className={`p-2 rounded-lg ${
+              isRouted 
+                ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30' 
+                : isAwaiting
+                  ? 'bg-cyan-500/10 text-cyan-400 border border-cyan-500/30'
+                  : 'bg-amber-500/10 text-amber-400 border border-amber-500/30'
+            }`}>
+              {isRouted ? <CheckCircle2 className="w-5 h-5" /> : isAwaiting ? <Clock className="w-5 h-5" /> : <AlertTriangle className="w-5 h-5" />}
             </div>
             <div>
               <h2 className="text-base font-bold text-white flex items-center gap-2">
                 Routing Audit Record
                 <span className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded-full uppercase border ${
-                  isRouted ? 'bg-emerald-950 text-emerald-400 border-emerald-500/40' : 'bg-amber-950 text-amber-400 border-amber-500/40'
+                  isRouted 
+                    ? 'bg-emerald-950 text-emerald-400 border-emerald-500/40' 
+                    : isAwaiting
+                      ? 'bg-cyan-950 text-cyan-400 border-cyan-500/40'
+                      : 'bg-amber-950 text-amber-400 border-amber-500/40'
                 }`}>
-                  {status}
+                  {isAwaiting ? 'Awaiting Routing' : status}
                 </span>
               </h2>
               <p className="text-xs text-slate-400 font-mono">
@@ -64,19 +75,27 @@ export default function RoutingDecisionModal({ decision, complaint, onClose }) {
           <div className={`p-4 rounded-xl border flex items-start gap-3.5 ${
             isRouted 
               ? 'bg-emerald-950/20 border-emerald-500/30 text-emerald-300' 
-              : 'bg-amber-950/20 border-amber-500/30 text-amber-300'
+              : isAwaiting
+                ? 'bg-cyan-950/20 border-cyan-500/30 text-cyan-300'
+                : 'bg-amber-950/20 border-amber-500/30 text-amber-300'
           }`}>
             <ShieldCheck className="w-5 h-5 shrink-0 mt-0.5" />
             <div className="text-xs space-y-1">
               <span className="font-semibold block text-sm">
-                {isRouted ? 'Deterministically Routed via PostGIS' : (isOutside ? 'Outside Boundaries — Human Review Required' : 'Human Review Required')}
+                {isRouted 
+                  ? 'Deterministically Routed via PostGIS' 
+                  : isAwaiting
+                    ? 'Complaint Registered — Awaiting Routing'
+                    : (isOutside ? 'Outside Boundaries — Human Review Required' : 'Human Review Required')}
               </span>
               <p className="text-slate-300 leading-relaxed">
                 {isRouted 
                   ? 'Spatial containment confirmed by PostgreSQL/PostGIS. Department resolved via active database mapping.' 
-                  : (isOutside
-                    ? 'Coordinates are outside active municipal boundaries. Flagged for civic officer review without inventing jurisdiction.'
-                    : 'Complaint location requires operator review (e.g. unmapped category or manual policy review).')}
+                  : isAwaiting
+                    ? 'Complaint is recorded in PostgreSQL. Routing assignment is pending deterministic GIS processing or operator action.'
+                    : (isOutside
+                      ? 'Coordinates are outside active municipal boundaries. Flagged for civic officer review without inventing jurisdiction.'
+                      : 'Complaint location requires operator review (e.g. unmapped category or manual policy review).')}
               </p>
             </div>
           </div>

@@ -373,6 +373,8 @@ function formatRoutingDecision(row, complaint = null) {
     complaintCode: finalComplaintCode,
     complaint_code: finalComplaintCode,
     category: finalCategory,
+    is_routed: row.routing_status === 'ROUTED',
+    isRouted: row.routing_status === 'ROUTED',
     routingStatus: row.routing_status,
     routing_status: row.routing_status,
     routingMethod: row.routing_method,
@@ -401,9 +403,14 @@ function formatRoutingDecision(row, complaint = null) {
 
 /**
  * Gets persisted routing decision for a specific complaint.
+ * Supports complaint UUID or complaint_code.
+ * If complaint is not yet routed (e.g. SUBMITTED), returns truthful awaiting-routing state.
  */
 const getRoutingDecisionByComplaint = async (complaintIdOrCode) => {
-  const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(complaintIdOrCode);
+  if (!complaintIdOrCode) return null;
+  const trimmed = typeof complaintIdOrCode === 'string' ? complaintIdOrCode.trim() : '';
+  if (!trimmed) return null;
+  const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(trimmed);
   const query = `
     SELECT 
       rd.id, rd.complaint_id, rd.routing_status, rd.routing_method, rd.reason, rd.matched_at,
@@ -419,17 +426,84 @@ const getRoutingDecisionByComplaint = async (complaintIdOrCode) => {
     LEFT JOIN jurisdictions j ON rd.jurisdiction_id = j.id
     LEFT JOIN authorities a ON rd.authority_id = a.id
     LEFT JOIN departments d ON rd.department_id = d.id
-    WHERE ${isUUID ? 'rd.complaint_id = $1 OR c.id = $1' : 'c.complaint_code = $1'};
+    WHERE ${isUUID ? '(rd.complaint_id = $1 OR c.id = $1)' : 'c.complaint_code ILIKE $1'};
   `;
-  const res = await pool.query(query, [complaintIdOrCode]);
-  if (res.rows.length === 0) return null;
-  return formatRoutingDecision(res.rows[0]);
+  const res = await pool.query(query, [trimmed]);
+  if (res.rows.length > 0) {
+    return formatRoutingDecision(res.rows[0]);
+  }
+
+  // Check if complaint exists in PostgreSQL complaints table
+  const compQuery = `
+    SELECT id, complaint_code, category, status, description, created_at, latitude, longitude
+    FROM complaints
+    WHERE ${isUUID ? 'id = $1' : 'complaint_code ILIKE $1'};
+  `;
+  const compRes = await pool.query(compQuery, [trimmed]);
+  if (compRes.rows.length === 0) {
+    return null; // Nonexistent complaint
+  }
+
+  const comp = compRes.rows[0];
+  return formatRoutingDecision({
+    id: null,
+    complaint_id: comp.id,
+    complaint_code: comp.complaint_code,
+    category: comp.category,
+    complaint_status: comp.status,
+    routing_status: 'AWAITING_ROUTING',
+    routing_method: 'PENDING',
+    reason: 'Complaint registered and awaiting routing assignment.',
+    matched_at: null,
+    created_at: comp.created_at,
+    authority_id: null,
+    authority_name: null,
+    authority_code: null,
+    department_id: null,
+    department_name: null,
+    department_code: null,
+    jurisdiction_id: null,
+    jurisdiction_name: null,
+    jurisdiction_code: null,
+    version_id: null,
+    version_code: null,
+    version_number: null
+  });
 };
 
 /**
- * Lists all routing decisions with pagination.
+ * Lists all routing decisions with pagination and optional search filter.
  */
-const getRoutingDecisionsList = async (limit = 20, offset = 0) => {
+const getRoutingDecisionsList = async (limit = 20, offset = 0, search = null) => {
+  const parsedLimit = Math.min(100, Math.max(1, parseInt(limit) || 20));
+  const parsedOffset = Math.max(0, parseInt(offset) || 0);
+  const trimmedSearch = typeof search === 'string' ? search.trim() : '';
+
+  let whereClause = '';
+  let countWhereClause = '';
+  const queryParams = [parsedLimit, parsedOffset];
+  const countParams = [];
+
+  if (trimmedSearch) {
+    queryParams.push(`%${trimmedSearch}%`);
+    whereClause = `WHERE (
+      c.complaint_code ILIKE $3 
+      OR a.name ILIKE $3 
+      OR d.name ILIKE $3 
+      OR j.name ILIKE $3 
+      OR c.category ILIKE $3
+    )`;
+
+    countParams.push(`%${trimmedSearch}%`);
+    countWhereClause = `WHERE (
+      c.complaint_code ILIKE $1 
+      OR a.name ILIKE $1 
+      OR d.name ILIKE $1 
+      OR j.name ILIKE $1 
+      OR c.category ILIKE $1
+    )`;
+  }
+
   const query = `
     SELECT 
       rd.id, rd.complaint_id, rd.routing_status, rd.routing_method, rd.reason, rd.matched_at,
@@ -445,19 +519,77 @@ const getRoutingDecisionsList = async (limit = 20, offset = 0) => {
     LEFT JOIN jurisdictions j ON rd.jurisdiction_id = j.id
     LEFT JOIN authorities a ON rd.authority_id = a.id
     LEFT JOIN departments d ON rd.department_id = d.id
+    ${whereClause}
     ORDER BY rd.created_at DESC
     LIMIT $1 OFFSET $2;
   `;
-  const countQuery = 'SELECT COUNT(*)::int AS total FROM routing_decisions;';
+  const countQuery = countWhereClause
+    ? `SELECT COUNT(*)::int AS total 
+       FROM routing_decisions rd 
+       JOIN complaints c ON rd.complaint_id = c.id 
+       LEFT JOIN jurisdictions j ON rd.jurisdiction_id = j.id
+       LEFT JOIN authorities a ON rd.authority_id = a.id 
+       LEFT JOIN departments d ON rd.department_id = d.id 
+       ${countWhereClause};`
+    : 'SELECT COUNT(*)::int AS total FROM routing_decisions;';
 
   const [res, countRes] = await Promise.all([
-    pool.query(query, [Math.min(100, Math.max(1, parseInt(limit) || 20)), Math.max(0, parseInt(offset) || 0)]),
-    pool.query(countQuery)
+    pool.query(query, queryParams),
+    pool.query(countQuery, countParams)
   ]);
+
+  let decisions = res.rows.map(row => formatRoutingDecision(row));
+
+  // If search was provided, check for any unrouted complaints matching the search query
+  if (trimmedSearch) {
+    const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(trimmedSearch);
+    const existingCompIds = new Set(decisions.map(d => d.complaint_id).filter(Boolean));
+    const compQuery = `
+      SELECT id, complaint_code, category, status, description, created_at, latitude, longitude
+      FROM complaints c
+      WHERE (${isUUID ? 'c.id = $1' : 'c.complaint_code ILIKE $1'})
+        AND NOT EXISTS (SELECT 1 FROM routing_decisions rd WHERE rd.complaint_id = c.id)
+      LIMIT 10;
+    `;
+    const compRes = await pool.query(compQuery, [isUUID ? trimmedSearch : `%${trimmedSearch}%`]);
+    if (compRes.rows.length > 0) {
+      const pendingDecisions = compRes.rows
+        .filter(comp => !existingCompIds.has(comp.id))
+        .map(comp => formatRoutingDecision({
+          id: null,
+          complaint_id: comp.id,
+          complaint_code: comp.complaint_code,
+          category: comp.category,
+          complaint_status: comp.status,
+          routing_status: 'AWAITING_ROUTING',
+          routing_method: 'PENDING',
+          reason: 'Complaint registered and awaiting routing assignment.',
+          matched_at: null,
+          created_at: comp.created_at,
+          authority_id: null,
+          authority_name: null,
+          authority_code: null,
+          department_id: null,
+          department_name: null,
+          department_code: null,
+          jurisdiction_id: null,
+          jurisdiction_name: null,
+          jurisdiction_code: null,
+          version_id: null,
+          version_code: null,
+          version_number: null
+        }));
+      decisions = [...pendingDecisions, ...decisions];
+      return {
+        total: countRes.rows[0].total + pendingDecisions.length,
+        decisions
+      };
+    }
+  }
 
   return {
     total: countRes.rows[0].total,
-    decisions: res.rows.map(row => formatRoutingDecision(row))
+    decisions
   };
 };
 

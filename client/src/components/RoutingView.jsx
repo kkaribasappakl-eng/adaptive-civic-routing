@@ -34,9 +34,9 @@ export default function RoutingView() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedDecision, setSelectedDecision] = useState(null);
 
-  const loadDecisions = async () => {
+  const loadDecisions = async (term = searchTerm) => {
     setLoading(true);
-    const res = await getRoutingDecisions(50, 0);
+    const res = await getRoutingDecisions(50, 0, term ? term.trim() : null);
     if (res.success && res.data) {
       setDecisions(res.data);
     }
@@ -44,31 +44,59 @@ export default function RoutingView() {
   };
 
   useEffect(() => {
-    loadDecisions();
-  }, []);
+    const timer = setTimeout(() => {
+      loadDecisions(searchTerm);
+    }, searchTerm ? 300 : 0);
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
 
-  // Listen for real-time routing events
+  // Listen for real-time routing events and new complaint intake
   useEffect(() => {
-    const handleRoutingCompleted = (data) => {
-      // Re-fetch or prepend normalized decision
-      loadDecisions();
+    const handleRoutingCompleted = () => {
+      loadDecisions(searchTerm);
     };
-    const handleRoutingReview = (data) => {
-      loadDecisions();
+    const handleRoutingReview = () => {
+      loadDecisions(searchTerm);
+    };
+    const handleComplaintCreated = (newComplaint) => {
+      const code = newComplaint.complaintCode || newComplaint.complaint_code;
+      const pendingRecord = {
+        id: `pending-${newComplaint.id || code}`,
+        complaint_id: newComplaint.id,
+        complaint_code: code,
+        category: newComplaint.category,
+        complaint_status: newComplaint.status || 'SUBMITTED',
+        routing_status: 'AWAITING_ROUTING',
+        routing_method: 'PENDING',
+        reason: 'Complaint registered and awaiting routing assignment.',
+        created_at: newComplaint.createdAt || newComplaint.created_at || new Date().toISOString(),
+        authority_name: null,
+        department_name: null,
+        jurisdiction_name: null,
+        version_code: null
+      };
+      setDecisions((prev) => [
+        pendingRecord,
+        ...prev.filter((d) => (d.complaint_code || d.complaintCode) !== code)
+      ]);
     };
 
     socket.on('routing:completed', handleRoutingCompleted);
     socket.on('routing:review_required', handleRoutingReview);
+    socket.on('complaint:created', handleComplaintCreated);
 
     return () => {
       socket.off('routing:completed', handleRoutingCompleted);
       socket.off('routing:review_required', handleRoutingReview);
+      socket.off('complaint:created', handleComplaintCreated);
     };
-  }, []);
+  }, [searchTerm]);
 
   const filteredDecisions = decisions.filter((d) => {
     const status = d.routing_status || d.routingStatus;
-    if (filterStatus !== 'ALL' && status !== filterStatus) return false;
+    if (filterStatus === 'ROUTED' && status !== 'ROUTED') return false;
+    if (filterStatus === 'HUMAN_REVIEW' && status !== 'HUMAN_REVIEW' && status !== 'UNROUTABLE') return false;
+    if (filterStatus === 'AWAITING' && status !== 'AWAITING_ROUTING' && status !== 'PENDING' && status !== 'SUBMITTED') return false;
     if (searchTerm) {
       const term = searchTerm.toLowerCase();
       const codeMatch = (d.complaint_code || d.complaintCode || '').toLowerCase().includes(term);
@@ -189,10 +217,16 @@ export default function RoutingView() {
               >
                 Review
               </button>
+              <button
+                onClick={() => setFilterStatus('AWAITING')}
+                className={`px-2.5 py-1 rounded transition ${filterStatus === 'AWAITING' ? 'bg-cyan-900/60 text-cyan-300' : 'text-slate-400 hover:text-slate-200'}`}
+              >
+                Awaiting
+              </button>
             </div>
 
             <button
-              onClick={loadDecisions}
+              onClick={() => loadDecisions(searchTerm)}
               disabled={loading}
               className="p-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg transition"
               title="Refresh decisions"
@@ -216,6 +250,7 @@ export default function RoutingView() {
             filteredDecisions.map((d) => {
               const status = d.routing_status || d.routingStatus || 'PENDING';
               const isRouted = status === 'ROUTED';
+              const isAwaiting = status === 'AWAITING_ROUTING' || status === 'PENDING' || status === 'SUBMITTED';
               const complaintCode = d.complaint_code || d.complaintCode || 'N/A';
               const category = d.category || 'N/A';
               const authorityName = getDecisionAuthority(d);
@@ -241,10 +276,12 @@ export default function RoutingView() {
                       <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase border flex items-center gap-1 ${
                         isRouted
                           ? 'bg-emerald-950 text-emerald-400 border-emerald-500/30'
-                          : 'bg-amber-950 text-amber-400 border-amber-500/30'
+                          : isAwaiting
+                            ? 'bg-cyan-950 text-cyan-400 border-cyan-500/30'
+                            : 'bg-amber-950 text-amber-400 border-amber-500/30'
                       }`}>
-                        {isRouted ? <CheckCircle2 className="w-3 h-3" /> : <AlertTriangle className="w-3 h-3" />}
-                        {status}
+                        {isRouted ? <CheckCircle2 className="w-3 h-3" /> : isAwaiting ? <Clock className="w-3 h-3" /> : <AlertTriangle className="w-3 h-3" />}
+                        {isAwaiting ? 'Awaiting Routing' : status}
                       </span>
                     </div>
 
