@@ -52,7 +52,7 @@ async function runTest() {
       latitude: 12.3020,
       longitude: 76.6430,
       citizen_contact: '9876543210'
-    });
+    }, '/uploads/complaints/test_photo.jpg');
 
     const insideComp = insideResult.complaint;
     const insideCode = insideComp.complaint_code;
@@ -123,7 +123,7 @@ async function runTest() {
       latitude: 12.9716, // Bangalore coordinates, well outside Mysuru boundaries
       longitude: 77.5946,
       citizen_contact: '9876543211'
-    });
+    }, '/uploads/complaints/test_photo.jpg');
 
     const outsideComp = outsideResult.complaint;
     const outsideCode = outsideComp.complaint_code;
@@ -179,8 +179,9 @@ async function runTest() {
       category: 'GARBAGE',
       category_source: 'MANUAL',
       latitude: 12.3050,
-      longitude: 76.6450
-    }, null, false); // autoRoute = false
+      longitude: 76.6450,
+      citizen_contact: '9876543212'
+    }, '/uploads/complaints/test_photo.jpg', false); // autoRoute = false
 
     const unroutedComp = unroutedResult.complaint;
     const unroutedCode = unroutedComp.complaint_code;

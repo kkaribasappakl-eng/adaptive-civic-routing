@@ -384,7 +384,9 @@ async function runStage12Tests() {
         category: 'WATER_LEAK',
         latitude: 12.3115,
         longitude: 76.6528,
-        address: 'Sayyaji Rao Road, Mysuru'
+        address: 'Sayyaji Rao Road, Mysuru',
+        photo_url: '/uploads/complaints/test_pipe.jpg',
+        citizen_contact: '9845012345'
       })
     });
     const complaintData = await complaintRes.json();

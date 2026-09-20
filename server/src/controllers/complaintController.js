@@ -78,7 +78,9 @@ const submitComplaint = async (req, res, next) => {
     if (error.status === 400) {
       return res.status(400).json({
         success: false,
+        code: error.code || 'VALIDATION_ERROR',
         error: error.message,
+        message: error.message,
         details: error.details || []
       });
     }

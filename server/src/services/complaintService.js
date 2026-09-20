@@ -5,12 +5,72 @@ const { getIO } = require('./socketService');
 const VALID_CATEGORY_SOURCES = ['AI_SUGGESTED', 'CITIZEN_SELECTED', 'MANUAL'];
 
 /**
+ * Validates and normalizes Indian mobile phone numbers.
+ * Accepted input formats:
+ *   - 9845012345
+ *   - +91 98450 12345
+ *   - +91-98450-12345
+ *   - 09845012345
+ *   - 919845012345
+ * Normalizes to standard E.164: +91XXXXXXXXXX
+ */
+const validateAndNormalizeIndianPhone = (phone) => {
+  if (!phone || typeof phone !== 'string') {
+    return { valid: false, error: 'Phone number is required to submit a complaint.' };
+  }
+  const trimmed = phone.trim();
+  if (trimmed.length === 0) {
+    return { valid: false, error: 'Phone number is required to submit a complaint.' };
+  }
+  // Remove whitespace, hyphens, parentheses, dots
+  const stripped = trimmed.replace(/[\s\-\(\)\.]/g, '');
+  const indianMobileRegex = /^(?:\+91|91|0)?([6-9]\d{9})$/;
+  const match = stripped.match(indianMobileRegex);
+  if (!match) {
+    return {
+      valid: false,
+      error: 'Please enter a valid 10-digit Indian mobile number (e.g., 9845012345 or +91 98450 12345).'
+    };
+  }
+  const tenDigit = match[1];
+  const normalized = `+91${tenDigit}`;
+  return { valid: true, normalized };
+};
+
+/**
  * Validates raw complaint input fields.
  */
-const validateComplaintInput = (data) => {
+const validateComplaintInput = (data, photoUrl = null) => {
   const errors = [];
 
-  // Description validation
+  // 1. Mandatory Photo validation
+  const photo = photoUrl || data.photo_url || null;
+  if (!photo || typeof photo !== 'string' || photo.trim().length === 0) {
+    errors.push('A photo is required to submit a complaint.');
+  }
+
+  // 2. Mandatory Phone validation
+  const phoneRaw = data.citizen_contact !== undefined && data.citizen_contact !== null
+    ? String(data.citizen_contact)
+    : (data.phone !== undefined && data.phone !== null
+      ? String(data.phone)
+      : (data.contact !== undefined && data.contact !== null
+        ? String(data.contact)
+        : null));
+
+  let normalizedPhone = null;
+  if (phoneRaw === null || phoneRaw.trim().length === 0) {
+    errors.push('Phone number is required to submit a complaint.');
+  } else {
+    const phoneResult = validateAndNormalizeIndianPhone(phoneRaw);
+    if (!phoneResult.valid) {
+      errors.push(phoneResult.error);
+    } else {
+      normalizedPhone = phoneResult.normalized;
+    }
+  }
+
+  // 3. Description validation
   if (!data.description || typeof data.description !== 'string' || data.description.trim().length === 0) {
     errors.push('Description is required and cannot be empty.');
   } else if (data.description.trim().length < 5) {
@@ -19,19 +79,19 @@ const validateComplaintInput = (data) => {
     errors.push('Description cannot exceed 2000 characters.');
   }
 
-  // Category validation
+  // 4. Category validation
   const category = (data.category || '').toUpperCase().trim();
   if (!category || !CONTROLLED_CATEGORIES.includes(category)) {
     errors.push(`Invalid category '${data.category}'. Allowed categories: ${CONTROLLED_CATEGORIES.join(', ')}.`);
   }
 
-  // Category Source validation
+  // 5. Category Source validation
   const categorySource = (data.category_source || 'MANUAL').toUpperCase().trim();
   if (!VALID_CATEGORY_SOURCES.includes(categorySource)) {
     errors.push(`Invalid category_source '${data.category_source}'. Allowed: ${VALID_CATEGORY_SOURCES.join(', ')}.`);
   }
 
-  // Geographic coordinates validation
+  // 6. Geographic coordinates validation
   const lat = parseFloat(data.latitude);
   const lng = parseFloat(data.longitude);
 
@@ -65,7 +125,8 @@ const validateComplaintInput = (data) => {
       category_confidence: confidence,
       latitude: lat,
       longitude: lng,
-      citizen_contact: data.citizen_contact ? String(data.citizen_contact).trim().slice(0, 100) : null
+      photo_url: photo ? photo.trim() : null,
+      citizen_contact: normalizedPhone
     }
   };
 };
@@ -131,10 +192,19 @@ const generateNextComplaintCode = async () => {
  * Creates and persists a citizen complaint into PostgreSQL with PostGIS Point geometry.
  */
 const createComplaint = async (inputData, photoRelativeUrl = null, autoRoute = true) => {
-  const validation = validateComplaintInput(inputData);
+  const validation = validateComplaintInput(inputData, photoRelativeUrl);
   if (!validation.valid) {
-    const error = new Error(validation.errors.join(' '));
+    const photoMissing = validation.errors.includes('A photo is required to submit a complaint.');
+    const phoneMissing = validation.errors.includes('Phone number is required to submit a complaint.');
+    let errorMessage;
+    if (photoMissing && phoneMissing && validation.errors.length === 2) {
+      errorMessage = 'Photo and phone number are required.';
+    } else {
+      errorMessage = validation.errors.join(' ');
+    }
+    const error = new Error(errorMessage);
     error.status = 400;
+    error.code = 'VALIDATION_ERROR';
     error.details = validation.errors;
     throw error;
   }
@@ -146,6 +216,7 @@ const createComplaint = async (inputData, photoRelativeUrl = null, autoRoute = t
     category_confidence,
     latitude,
     longitude,
+    photo_url,
     citizen_contact
   } = validation.sanitized;
 
@@ -202,7 +273,7 @@ const createComplaint = async (inputData, photoRelativeUrl = null, autoRoute = t
     category,
     category_source,
     category_confidence,
-    photoRelativeUrl,
+    photo_url,
     longitude, // $7 (X)
     latitude,  // $8 (Y)
     citizen_contact,

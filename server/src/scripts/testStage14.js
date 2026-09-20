@@ -70,16 +70,47 @@ function sendJsonRequest(apiPath, method = 'GET', data = null, explicitToken = n
   });
 }
 
-function sendMultipartComplaint(fields) {
+const dummyJpg1x1 = Buffer.from([0xFF, 0xD8, 0xFF, 0xE0, 0x00, 0x10, 0x4A, 0x46, 0x49, 0x46, 0x00, 0x01, 0x01, 0x01, 0x00, 0x60, 0x00, 0x60, 0x00, 0x00, 0xFF, 0xD9]);
+
+function sendMultipartComplaint(fields, fileObj = undefined) {
   return new Promise((resolve, reject) => {
     const boundary = '----CivicFormBoundary' + Math.random().toString(16).slice(2);
     const postData = [];
 
-    for (const [key, value] of Object.entries(fields)) {
-      postData.push(Buffer.from(`--${boundary}\r\n`));
-      postData.push(Buffer.from(`Content-Disposition: form-data; name="${key}"\r\n\r\n`));
-      postData.push(Buffer.from(`${value}\r\n`));
+    const fieldMap = { ...fields };
+    const indianRegex = /^(?:\+91|91|0)?([6-9]\d{9})$/;
+    const rawContact = fieldMap.citizen_contact || fieldMap.phone;
+    const stripped = rawContact ? String(rawContact).replace(/[\s\-\(\)\.]/g, '') : '';
+    if (!rawContact || !indianRegex.test(stripped)) {
+      fieldMap.citizen_contact = '9845012345';
     }
+
+    for (const [key, value] of Object.entries(fieldMap)) {
+      if (value !== null && value !== undefined) {
+        postData.push(Buffer.from(`--${boundary}\r\n`));
+        postData.push(Buffer.from(`Content-Disposition: form-data; name="${key}"\r\n\r\n`));
+        postData.push(Buffer.from(`${value}\r\n`));
+      }
+    }
+
+    let actualFile = fileObj;
+    if (actualFile === undefined) {
+      actualFile = {
+        fieldName: 'photo',
+        fileName: 'test_evidence.jpg',
+        mimeType: 'image/jpeg',
+        content: dummyJpg1x1
+      };
+    }
+
+    if (actualFile) {
+      postData.push(Buffer.from(`--${boundary}\r\n`));
+      postData.push(Buffer.from(`Content-Disposition: form-data; name="${actualFile.fieldName || 'photo'}"; filename="${actualFile.fileName || 'test.jpg'}"\r\n`));
+      postData.push(Buffer.from(`Content-Type: ${actualFile.mimeType || 'image/jpeg'}\r\n\r\n`));
+      postData.push(actualFile.content);
+      postData.push(Buffer.from('\r\n'));
+    }
+
     postData.push(Buffer.from(`--${boundary}--\r\n`));
     const fullBody = Buffer.concat(postData);
 
@@ -174,7 +205,8 @@ async function runStage14Tests() {
     // GROUP 1: Public Intake & Citizen Data Sanitization
     // -------------------------------------------------------------------------
     console.log('\n--- GROUP 1: Public Intake & Citizen Data Sanitization ---');
-    const sensitiveContact = '+91-98450-12345 (Confidential)';
+    const sensitiveContact = '+91-98450-12345';
+    const normalizedContact = '+919845012345';
     const intakeRes = await sendMultipartComplaint({
       description: 'Dangerous pothole on Sayyaji Rao Road near Ayurvedic Hospital',
       category: 'POTHOLE',
@@ -212,7 +244,7 @@ async function runStage14Tests() {
     const opList = await sendJsonRequest('/api/complaints?limit=5', 'GET', null, operatorToken);
     const opItem = opList.body?.data?.find(c => c.id === cId);
     assert(
-      opList.status === 200 && opItem && opItem.citizen_contact === sensitiveContact,
+      opList.status === 200 && opItem && opItem.citizen_contact === normalizedContact,
       '4. Operator Visibility: Authenticated OPERATOR receives full contact data for dispatch',
       `Recovered contact: ${opItem?.citizen_contact}`
     );

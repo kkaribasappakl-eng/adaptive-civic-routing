@@ -74,6 +74,13 @@ const CONTROLLED_CATEGORIES = [
   { id: 'OTHER', label: 'Other Civic Issue' }
 ];
 
+// Helper to validate Indian mobile phone numbers
+const validateIndianMobile = (phone) => {
+  if (!phone || typeof phone !== 'string') return false;
+  const stripped = phone.trim().replace(/[\s\-\(\)\.]/g, '');
+  return /^(?:\+91|91|0)?([6-9]\d{9})$/.test(stripped);
+};
+
 // Interactive map click handler
 function PinLocationHandler({ onLocationChange }) {
   useMapEvents({
@@ -201,6 +208,21 @@ export default function ComplaintForm({ onComplaintSubmitted, onTrackComplaint }
 
     if (!description || description.trim().length < 5) {
       setErrorMessage('Please enter a detailed description of at least 5 characters.');
+      return;
+    }
+
+    if (!photoFile) {
+      setErrorMessage('A photo is required to submit a complaint.');
+      return;
+    }
+
+    if (!contact || contact.trim().length === 0) {
+      setErrorMessage('Phone number is required to submit a complaint.');
+      return;
+    }
+
+    if (!validateIndianMobile(contact)) {
+      setErrorMessage('Please enter a valid 10-digit Indian mobile number (e.g., 9845012345 or +91 98450 12345).');
       return;
     }
 
@@ -412,19 +434,25 @@ export default function ComplaintForm({ onComplaintSubmitted, onTrackComplaint }
 
       {/* 2. Photo Evidence Upload */}
       <div className="space-y-1.5">
-        <label className="text-xs font-semibold text-slate-200 flex items-center gap-1.5">
-          <Camera className="w-3.5 h-3.5 text-civic-400" />
-          Photo Evidence (Optional)
-        </label>
+        <div className="flex items-center justify-between">
+          <label className="text-xs font-semibold text-slate-200 flex items-center gap-1.5">
+            <Camera className="w-3.5 h-3.5 text-civic-400" />
+            <span>Photo *</span>
+          </label>
+          <span className="text-[10px] text-amber-400 font-medium bg-amber-950/60 px-1.5 py-0.5 rounded border border-amber-800/60">
+            Required
+          </span>
+        </div>
+        <p className="text-[11px] text-slate-400">Upload a photo of the civic issue</p>
 
         {!photoPreview ? (
           <div
             onClick={() => fileInputRef.current?.click()}
-            className="border-2 border-dashed border-slate-800 hover:border-slate-700 rounded-lg p-4 text-center cursor-pointer bg-slate-950/40 hover:bg-slate-950 transition"
+            className="border-2 border-dashed border-slate-800 hover:border-civic-500/60 rounded-lg p-4 text-center cursor-pointer bg-slate-950/40 hover:bg-slate-950 transition"
           >
             <Camera className="w-6 h-6 text-slate-500 mx-auto mb-1" />
-            <p className="text-xs font-medium text-slate-300">Click to upload photo evidence</p>
-            <p className="text-[10px] text-slate-500 mt-0.5">JPEG, PNG, WebP up to 5MB</p>
+            <p className="text-xs font-medium text-slate-300">Click to upload photo evidence *</p>
+            <p className="text-[10px] text-slate-500 mt-0.5">JPEG, PNG, WebP up to 5MB (Required)</p>
             <input
               ref={fileInputRef}
               type="file"
@@ -635,17 +663,24 @@ export default function ComplaintForm({ onComplaintSubmitted, onTrackComplaint }
         </div>
       )}
 
-      {/* 6. Citizen Contact (Optional) */}
-      <div className="space-y-1">
-        <label className="text-[11px] font-semibold text-slate-400">
-          Citizen Contact / Mobile (Optional)
-        </label>
+      {/* 6. Citizen Phone Number */}
+      <div className="space-y-1.5">
+        <div className="flex items-center justify-between">
+          <label className="text-xs font-semibold text-slate-200">
+            Phone Number *
+          </label>
+          <span className="text-[10px] text-amber-400 font-medium bg-amber-950/60 px-1.5 py-0.5 rounded border border-amber-800/60">
+            Required
+          </span>
+        </div>
+        <p className="text-[11px] text-slate-400">Required for complaint verification and follow-up</p>
         <input
-          type="text"
+          type="tel"
           value={contact}
           onChange={(e) => setContact(e.target.value)}
-          placeholder="Optional: Phone or email for grievance updates"
-          className="w-full p-2 rounded-lg bg-slate-950 border border-slate-800 text-slate-200 text-xs focus:border-civic-500 focus:outline-none"
+          placeholder="e.g., 9845012345 or +91 98450 12345"
+          className="w-full p-2.5 rounded-lg bg-slate-950 border border-slate-800 text-slate-100 text-xs focus:border-civic-500 focus:outline-none font-mono placeholder:text-slate-600 transition"
+          required
         />
       </div>
 

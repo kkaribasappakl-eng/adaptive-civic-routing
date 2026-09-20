@@ -250,6 +250,7 @@ const getComplaintWithFullLifecycle = async (complaintIdOrCode) => {
       photo_url,
       latitude,
       longitude,
+      citizen_contact,
       status,
       routed_at,
       sla_warning_at,
