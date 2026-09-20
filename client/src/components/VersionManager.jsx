@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import {
   Layers,
   GitBranch,
@@ -39,6 +40,7 @@ export default function VersionManager({ onVersionChange, onCoordinateSelect }) 
   const [activeVersion, setActiveVersion] = useState(null);
   const [auditLogs, setAuditLogs] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [validatingVersionId, setValidatingVersionId] = useState(null);
   const [actionMessage, setActionMessage] = useState(null);
   const [previewData, setPreviewData] = useState(null);
   const [comparisonData, setComparisonData] = useState(null);
@@ -63,6 +65,19 @@ export default function VersionManager({ onVersionChange, onCoordinateSelect }) 
     operator: 'Civic Administrator (Demo)',
     reason: 'Routine municipal boundary delimitation transition'
   });
+
+  // Close modals on Escape key press
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        setShowValidateModal(false);
+        setShowCreateModal(false);
+        setShowActivateModal(false);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   // Delimitation Test Coordinate X (proven inside V1 MCC, transfers to MUDA in V2)
   const COORD_X = { lat: 12.3150, lng: 76.6500, label: 'Coordinate X (North-Central Delimitation Zone)' };
@@ -109,10 +124,13 @@ export default function VersionManager({ onVersionChange, onCoordinateSelect }) 
     setActionMessage(null);
     const res = await setupDemoV2();
     if (res.success) {
-      setActionMessage({ type: 'success', text: 'Proposed Version MYS_2026_V2 created in DRAFT status and validated.' });
+      setActionMessage({
+        type: 'success',
+        text: `Demo V2 Setup Complete! Version 'MYS_2026_V2' created with updated MUDA delimitation.`
+      });
       await loadData();
     } else {
-      setActionMessage({ type: 'error', text: res.error || 'Failed to setup V2 proposal.' });
+      setActionMessage({ type: 'error', text: res.error || 'Failed to setup Demo V2.' });
     }
     setLoading(false);
   };
@@ -120,10 +138,7 @@ export default function VersionManager({ onVersionChange, onCoordinateSelect }) 
   // 2. Create Custom Draft Version
   const handleCreateDraft = async (e) => {
     e.preventDefault();
-    if (!draftForm.versionCode.trim()) {
-      setActionMessage({ type: 'error', text: 'Version code is required.' });
-      return;
-    }
+    if (!draftForm.versionCode.trim()) return;
 
     setLoading(true);
     setActionMessage(null);
@@ -150,16 +165,27 @@ export default function VersionManager({ onVersionChange, onCoordinateSelect }) 
   // 3. PostGIS Boundary Validation
   const handleRunValidation = async (version) => {
     setLoading(true);
+    setValidatingVersionId(version.id);
     setActionMessage(null);
-    const res = await validateJurisdictionVersion(version.id || version.version_code);
-    if (res.success) {
-      setSelectedValidation(res.data);
-      setShowValidateModal(true);
-      await loadData();
-    } else {
-      setActionMessage({ type: 'error', text: res.error || 'Validation execution failed.' });
+    try {
+      const res = await validateJurisdictionVersion(version.id || version.version_code);
+      if (res.success && res.data) {
+        setSelectedValidation(res.data);
+        setShowValidateModal(true);
+        setActionMessage({
+          type: res.data.valid ? 'success' : 'error',
+          text: `PostGIS Validation for ${res.data.versionCode}: ${res.data.validationStatus} — ${res.data.validationMessage}`
+        });
+        await loadData();
+      } else {
+        setActionMessage({ type: 'error', text: res.error || 'Validation execution failed.' });
+      }
+    } catch (err) {
+      setActionMessage({ type: 'error', text: err.message || 'Validation request failed.' });
+    } finally {
+      setLoading(false);
+      setValidatingVersionId(null);
     }
-    setLoading(false);
   };
 
   // 4. Preview Coordinate X against Proposed V2 side-by-side with Active Version
@@ -227,21 +253,21 @@ export default function VersionManager({ onVersionChange, onCoordinateSelect }) 
   };
 
   return (
-    <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-2xl space-y-5">
+    <div className="bg-[#0d1424] border border-slate-800/90 rounded-2xl p-5 sm:p-6 shadow-2xl space-y-5">
       {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 pb-4">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800/80 pb-4">
         <div className="flex items-center gap-2.5">
-          <div className="p-2 rounded-lg bg-civic-500/10 border border-civic-500/30 text-civic-400">
+          <div className="p-2 rounded-xl bg-teal-500/10 border border-teal-500/30 text-teal-400">
             <Layers className="w-5 h-5" />
           </div>
           <div>
             <h2 className="text-base font-bold text-white flex items-center gap-2">
               Jurisdiction Boundary & Safe Version Management
-              <span className="text-xs uppercase font-mono px-2 py-0.5 rounded bg-civic-500/20 text-civic-300 border border-civic-500/30">
+              <span className="text-xs uppercase font-mono px-2 py-0.5 rounded-full bg-teal-500/10 text-teal-300 border border-teal-500/30 font-semibold">
                 Stage 10
               </span>
             </h2>
-            <p className="text-xs text-slate-400">
+            <p className="text-xs text-slate-400 mt-1">
               PostgreSQL/PostGIS boundary validation • Overlap detection • Transactional activation • Single ACTIVE constraint • Immutable historical routing
             </p>
           </div>
@@ -251,13 +277,13 @@ export default function VersionManager({ onVersionChange, onCoordinateSelect }) 
           {isAdmin ? (
             <button
               onClick={() => setShowCreateModal(true)}
-              className="px-3 py-1.5 rounded-lg bg-civic-600 hover:bg-civic-500 text-white text-xs font-semibold shadow-sm transition flex items-center gap-1.5"
+              className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-xs font-semibold shadow-sm transition flex items-center gap-1.5"
             >
               <PlusCircle className="w-4 h-4" />
               Create Custom Draft
             </button>
           ) : (
-            <span className="px-2.5 py-1 rounded bg-slate-800/80 text-slate-400 border border-slate-700 text-[10px] font-mono flex items-center gap-1">
+            <span className="px-2.5 py-1 rounded-lg bg-slate-800/80 text-slate-400 border border-slate-700 text-[10px] font-mono flex items-center gap-1">
               <Shield className="w-3 h-3 text-slate-400" />
               Admin Draft Creation
             </span>
@@ -265,10 +291,10 @@ export default function VersionManager({ onVersionChange, onCoordinateSelect }) 
           <button
             onClick={loadData}
             disabled={loading}
-            className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 transition"
+            className="p-2 rounded-xl bg-slate-800/80 hover:bg-slate-750 text-slate-300 border border-slate-750 transition"
             title="Refresh Versions"
           >
-            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin text-teal-400' : ''}`} />
           </button>
         </div>
       </div>
@@ -276,14 +302,14 @@ export default function VersionManager({ onVersionChange, onCoordinateSelect }) 
       {/* Action Notification Banner */}
       {actionMessage && (
         <div
-          className={`p-3 rounded-lg text-xs flex items-center gap-2 border ${
+          className={`p-3.5 rounded-xl text-xs flex items-center gap-2 border ${
             actionMessage.type === 'success'
-              ? 'bg-emerald-950/40 border-emerald-500/40 text-emerald-300'
+              ? 'bg-teal-950/40 border-teal-500/40 text-teal-300'
               : 'bg-rose-950/40 border-rose-500/40 text-rose-300'
           }`}
         >
           {actionMessage.type === 'success' ? (
-            <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-400" />
+            <CheckCircle2 className="w-4 h-4 shrink-0 text-teal-400" />
           ) : (
             <AlertTriangle className="w-4 h-4 shrink-0 text-rose-400" />
           )}
@@ -292,7 +318,7 @@ export default function VersionManager({ onVersionChange, onCoordinateSelect }) 
       )}
 
       {/* Version Status Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5">
         {versions.map((ver) => {
           const isActive = ver.status === 'ACTIVE';
           const isDraft = ver.status === 'DRAFT';
@@ -305,30 +331,30 @@ export default function VersionManager({ onVersionChange, onCoordinateSelect }) 
               key={ver.id}
               className={`p-4 rounded-xl border transition-all flex flex-col justify-between ${
                 isActive
-                  ? 'bg-slate-900/90 border-emerald-500/50 shadow-lg shadow-emerald-950/30 ring-1 ring-emerald-500/30'
+                  ? 'bg-gradient-to-b from-[#070b16] to-[#0a1526] border-teal-500/50 shadow-lg shadow-teal-950/30 ring-1 ring-teal-500/30'
                   : isDraft
-                  ? 'bg-slate-900/70 border-amber-500/40 shadow-amber-950/20'
-                  : 'bg-slate-900/40 border-slate-800 opacity-80'
+                  ? 'bg-[#070b16]/90 border-amber-500/40 shadow-amber-950/20'
+                  : 'bg-[#070b16]/60 border-slate-800 opacity-80'
               }`}
             >
               <div>
                 <div className="flex items-center justify-between mb-2">
                   <span className="font-mono text-xs font-bold text-white flex items-center gap-1.5">
-                    <GitBranch className="w-3.5 h-3.5 text-civic-400" />
+                    <GitBranch className="w-3.5 h-3.5 text-teal-400" />
                     {ver.version_code}
                   </span>
                   <div className="flex items-center gap-1.5">
                     {/* Lifecycle status pill */}
                     <span
-                      className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider flex items-center gap-1 ${
+                      className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider flex items-center gap-1 ${
                         isActive
-                          ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40'
+                          ? 'bg-teal-500/20 text-teal-300 border border-teal-500/40'
                           : isDraft
                           ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
                           : 'bg-slate-800 text-slate-400 border border-slate-700'
                       }`}
                     >
-                      {isActive && <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />}
+                      {isActive && <span className="w-1.5 h-1.5 rounded-full bg-teal-400 animate-pulse" />}
                       {ver.status}
                     </span>
                   </div>
@@ -374,11 +400,20 @@ export default function VersionManager({ onVersionChange, onCoordinateSelect }) 
                 <div className="flex items-center gap-2 pt-1">
                   <button
                     onClick={() => handleRunValidation(ver)}
-                    disabled={loading}
-                    className="flex-1 py-1 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700 text-[10px] font-medium transition flex items-center justify-center gap-1"
+                    disabled={loading || validatingVersionId === ver.id}
+                    className="flex-1 py-1.5 px-2 rounded bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-[10px] font-semibold transition flex items-center justify-center gap-1.5 disabled:opacity-60"
                   >
-                    <Scale className="w-3 h-3 text-civic-400" />
-                    Validate PostGIS
+                    {validatingVersionId === ver.id ? (
+                      <>
+                        <RefreshCw className="w-3.5 h-3.5 text-teal-400 animate-spin" />
+                        <span className="text-teal-300 font-bold">Validating PostGIS...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Scale className="w-3.5 h-3.5 text-teal-400" />
+                        <span>Validate PostGIS</span>
+                      </>
+                    )}
                   </button>
 
                   {isDraft && isAdmin && (
@@ -616,9 +651,14 @@ export default function VersionManager({ onVersionChange, onCoordinateSelect }) 
       {/* ========================================================================= */}
       {/* MODAL 1: Create Custom Draft Version                                       */}
       {/* ========================================================================= */}
-      {showCreateModal && (
-        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-800 rounded-xl max-w-md w-full p-5 space-y-4 shadow-2xl">
+      {showCreateModal && typeof document !== 'undefined' && createPortal(
+        <div
+          className="fixed inset-0 z-[99999] bg-black/85 backdrop-blur-md flex items-center justify-center p-4"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setShowCreateModal(false);
+          }}
+        >
+          <div className="bg-[#0d1424] border border-slate-800/90 rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl">
             <div className="flex items-center justify-between border-b border-slate-800 pb-3">
               <h3 className="text-sm font-bold text-white flex items-center gap-2">
                 <PlusCircle className="w-4 h-4 text-civic-400" />
@@ -700,32 +740,41 @@ export default function VersionManager({ onVersionChange, onCoordinateSelect }) 
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* ========================================================================= */}
       {/* MODAL 2: PostGIS Boundary Validation Breakdown                             */}
       {/* ========================================================================= */}
-      {showValidateModal && selectedValidation && (
-        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-800 rounded-xl max-w-2xl w-full p-5 space-y-4 shadow-2xl max-h-[90vh] overflow-y-auto">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-              <div className="flex items-center gap-2">
-                <Scale className="w-5 h-5 text-civic-400" />
+      {showValidateModal && selectedValidation && typeof document !== 'undefined' && createPortal(
+        <div
+          className="fixed inset-0 z-[99999] bg-black/85 backdrop-blur-md flex items-center justify-center p-4 sm:p-6 overflow-y-auto animate-in fade-in duration-150"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setShowValidateModal(false);
+          }}
+        >
+          <div className="relative bg-[#0d1424] border border-slate-700/90 rounded-2xl max-w-2xl w-full p-6 space-y-4 shadow-2xl my-auto max-h-[88vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3 sticky top-0 bg-[#0d1424] z-10">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 rounded-lg bg-teal-500/10 border border-teal-500/30 text-teal-400">
+                  <Scale className="w-5 h-5" />
+                </div>
                 <div>
-                  <h3 className="text-sm font-bold text-white">
+                  <h3 className="text-base font-bold text-white">
                     PostGIS Boundary Validation Report
                   </h3>
-                  <p className="text-[11px] font-mono text-slate-400">
-                    Version: {selectedValidation.versionCode}
+                  <p className="text-[11px] font-mono text-teal-400">
+                    Version: {selectedValidation.versionCode || selectedValidation.version_code}
                   </p>
                 </div>
               </div>
               <button
                 onClick={() => setShowValidateModal(false)}
-                className="text-slate-400 hover:text-white"
+                className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition"
+                title="Close report (Esc)"
               >
-                <X className="w-4 h-4" />
+                <X className="w-5 h-5" />
               </button>
             </div>
 
@@ -733,8 +782,8 @@ export default function VersionManager({ onVersionChange, onCoordinateSelect }) 
             <div
               className={`p-3 rounded-lg flex items-center gap-2.5 text-xs font-semibold border ${
                 selectedValidation.valid
-                  ? 'bg-emerald-950/60 border-emerald-500/50 text-emerald-300'
-                  : 'bg-rose-950/60 border-rose-500/50 text-rose-300'
+                  ? 'bg-emerald-950/70 border-emerald-500/50 text-emerald-300'
+                  : 'bg-rose-950/70 border-rose-500/50 text-rose-300'
               }`}
             >
               {selectedValidation.valid ? (
@@ -746,11 +795,23 @@ export default function VersionManager({ onVersionChange, onCoordinateSelect }) 
                 <p className="font-bold">
                   Status: {selectedValidation.validationStatus} ({selectedValidation.valid ? 'PASSED' : 'REJECTED'})
                 </p>
-                <p className="text-[11px] font-normal opacity-90">
+                <p className="text-[11px] font-normal opacity-90 mt-0.5">
                   {selectedValidation.validationMessage}
                 </p>
               </div>
             </div>
+
+            {/* Issues breakdown (if invalid) */}
+            {selectedValidation.issues && selectedValidation.issues.length > 0 && (
+              <div className="p-3 rounded-lg bg-rose-950/30 border border-rose-800/40 text-xs text-rose-200 space-y-1">
+                <span className="font-bold text-rose-300 block mb-1">Detected Boundary Issues:</span>
+                <ul className="list-disc list-inside space-y-0.5 text-[11px]">
+                  {selectedValidation.issues.map((iss, i) => (
+                    <li key={i}>{iss}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
 
             {/* PostGIS Geometry Checks Table */}
             <div className="space-y-2">
@@ -762,12 +823,12 @@ export default function VersionManager({ onVersionChange, onCoordinateSelect }) 
                 <table className="w-full text-[11px] text-slate-300">
                   <thead className="bg-slate-950 text-slate-400 font-mono text-[10px] uppercase">
                     <tr>
-                      <th className="py-2 px-2.5">Zone Name</th>
-                      <th className="py-2 px-2.5">Type</th>
-                      <th className="py-2 px-2.5">SRID</th>
-                      <th className="py-2 px-2.5">ST_IsValid</th>
-                      <th className="py-2 px-2.5">Area (km²)</th>
-                      <th className="py-2 px-2.5">Result</th>
+                      <th className="py-2 px-2.5 text-left">Zone Name</th>
+                      <th className="py-2 px-2.5 text-left">Type</th>
+                      <th className="py-2 px-2.5 text-left">SRID</th>
+                      <th className="py-2 px-2.5 text-left">ST_IsValid</th>
+                      <th className="py-2 px-2.5 text-left">Area (km²)</th>
+                      <th className="py-2 px-2.5 text-left">Result</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-800/60 font-mono">
@@ -832,24 +893,30 @@ export default function VersionManager({ onVersionChange, onCoordinateSelect }) 
               </div>
             </div>
 
-            <div className="flex justify-end pt-2 border-t border-slate-800">
+            <div className="flex justify-end pt-3 border-t border-slate-800 sticky bottom-0 bg-[#0d1424] z-10">
               <button
                 onClick={() => setShowValidateModal(false)}
-                className="px-4 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs"
+                className="px-5 py-2 rounded-xl bg-teal-600 hover:bg-teal-500 text-slate-950 font-bold text-xs shadow-md transition"
               >
                 Close Report
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* ========================================================================= */}
       {/* MODAL 3: Safe Atomic Activation Confirmation Modal                        */}
       {/* ========================================================================= */}
-      {showActivateModal && targetVersionToActivate && (
-        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-slate-900 border border-slate-800 rounded-xl max-w-lg w-full p-5 space-y-4 shadow-2xl">
+      {showActivateModal && targetVersionToActivate && typeof document !== 'undefined' && createPortal(
+        <div
+          className="fixed inset-0 z-[99999] bg-black/85 backdrop-blur-md flex items-center justify-center p-4"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) setShowActivateModal(false);
+          }}
+        >
+          <div className="bg-[#0d1424] border border-slate-800/90 rounded-2xl max-w-lg w-full p-6 space-y-4 shadow-2xl">
             <div className="flex items-center justify-between border-b border-slate-800 pb-3">
               <h3 className="text-sm font-bold text-white flex items-center gap-2">
                 <Zap className="w-4 h-4 text-emerald-400" />
@@ -938,7 +1005,8 @@ export default function VersionManager({ onVersionChange, onCoordinateSelect }) 
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

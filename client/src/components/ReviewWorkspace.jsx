@@ -22,10 +22,13 @@ import {
   Filter,
   Check,
   Zap,
-  Info
+  Info,
+  Phone
 } from 'lucide-react';
-import { MapContainer, TileLayer, Marker, Popup, GeoJSON } from 'react-leaflet';
+import { MapContainer, Marker, Popup, GeoJSON } from 'react-leaflet';
 import L from 'leaflet';
+import CivicMapLayers from './CivicMapLayers';
+import MapLayerToggle from './MapLayerToggle';
 import {
   getReviews,
   getReviewDetail,
@@ -63,6 +66,7 @@ export default function ReviewWorkspace({ onSelectComplaint }) {
   // Authorities and departments from PostgreSQL
   const [authorities, setAuthorities] = useState([]);
   const [boundaries, setBoundaries] = useState(null);
+  const [mapLayer, setMapLayer] = useState('standard');
 
   // Action form state
   const [reviewerName, setReviewerName] = useState(() => localStorage.getItem('civic_reviewer_name') || 'Officer Mysuru');
@@ -352,10 +356,10 @@ export default function ReviewWorkspace({ onSelectComplaint }) {
   return (
     <div className="space-y-6">
       {/* Workspace Header */}
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="bg-[#0d1424]/90 border border-slate-800/90 rounded-2xl p-6 shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-4 backdrop-blur">
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <span className="px-2.5 py-0.5 rounded-full text-xs font-mono font-bold bg-amber-500/10 text-amber-400 border border-amber-500/30">
+            <span className="px-2.5 py-0.5 rounded-full text-xs font-mono font-bold bg-amber-500/10 text-amber-300 border border-amber-500/30">
               STAGE 9 ACTIVE
             </span>
             <span className="text-xs text-slate-400 font-mono">
@@ -363,16 +367,18 @@ export default function ReviewWorkspace({ onSelectComplaint }) {
             </span>
           </div>
           <h2 className="text-xl font-bold text-white flex items-center gap-2">
-            <ShieldAlert className="w-5 h-5 text-amber-400" />
+            <div className="p-1.5 rounded-xl bg-amber-500/10 text-amber-400 border border-amber-500/30">
+              <ShieldAlert className="w-5 h-5" />
+            </div>
             Operator Review & Exception Workspace
           </h2>
-          <p className="text-xs text-slate-400 mt-1 max-w-2xl">
+          <p className="text-xs text-slate-400 mt-1.5 max-w-2xl leading-relaxed">
             Human operators resolve civic complaints that fell out of deterministic PostGIS containment or automated category mappings. Every decision preserves original automated provenance and appends immutable audit records.
           </p>
         </div>
 
         {/* Global Reviewer Identity Badge */}
-        <div className="flex items-center gap-3 bg-slate-950/70 border border-slate-800 px-4 py-2.5 rounded-xl">
+        <div className="flex items-center gap-3 bg-[#070b16]/90 border border-slate-800/90 px-4 py-2.5 rounded-xl shadow-inner">
           <UserCheck className="w-5 h-5 text-amber-400 shrink-0" />
           <div>
             <label className="block text-[10px] uppercase font-mono tracking-wider text-slate-400">
@@ -396,7 +402,7 @@ export default function ReviewWorkspace({ onSelectComplaint }) {
         {/* LEFT COLUMN: REVIEW QUEUE (4 COLS)                       */}
         {/* ========================================================= */}
         <div className="lg:col-span-4 space-y-4">
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-4 shadow-xl space-y-4">
+          <div className="bg-[#0d1424]/90 border border-slate-800/90 rounded-2xl p-4 shadow-xl space-y-4 backdrop-blur">
             {/* Filter Tabs with real counts */}
             <div className="flex items-center justify-between">
               <span className="text-xs font-semibold uppercase tracking-wider text-slate-400 font-mono flex items-center gap-1.5">
@@ -414,7 +420,7 @@ export default function ReviewWorkspace({ onSelectComplaint }) {
             </div>
 
             {/* Status Pills */}
-            <div className="grid grid-cols-5 gap-1 bg-slate-950 p-1 rounded-xl border border-slate-800 text-[11px] font-mono">
+            <div className="grid grid-cols-5 gap-1 bg-[#070b16] p-1 rounded-xl border border-slate-800 text-[11px] font-mono">
               <button
                 onClick={() => setSelectedStatusTab('OPEN')}
                 className={`py-1.5 px-1 rounded-lg text-center font-semibold transition ${
@@ -597,6 +603,22 @@ export default function ReviewWorkspace({ onSelectComplaint }) {
                       </p>
                     </div>
 
+                    {/* Authorized Reporter Contact */}
+                    {caseData.complaint.citizen_contact && (
+                      <div className="bg-slate-950/60 p-2.5 rounded-xl border border-slate-800 flex items-center justify-between font-mono text-xs">
+                        <div className="flex items-center gap-2">
+                          <Phone className="w-3.5 h-3.5 text-teal-400 shrink-0" />
+                          <div>
+                            <span className="text-[10px] text-slate-400 block uppercase">Reporter Contact</span>
+                            <span className="font-bold text-teal-300">{caseData.complaint.citizen_contact}</span>
+                          </div>
+                        </div>
+                        <span className="text-[10px] text-slate-400 bg-slate-900 px-2 py-0.5 rounded border border-slate-800">
+                          Verified Citizen Mobile
+                        </span>
+                      </div>
+                    )}
+
                     <div className="grid grid-cols-2 gap-2">
                       <div className="bg-slate-950/60 p-2.5 rounded-xl border border-slate-800">
                         <span className="text-[10px] font-mono text-slate-400 block">Category</span>
@@ -642,25 +664,24 @@ export default function ReviewWorkspace({ onSelectComplaint }) {
 
                   {/* Right sub-column: Map & Photo Evidence */}
                   <div className="space-y-3">
-                    {/* Location & Mini Leaflet Map */}
+                    {/* Location & Leaflet Map (Medium Size 500px) */}
                     <div className="bg-slate-950/80 rounded-xl border border-slate-800 p-2 overflow-hidden">
                       <div className="flex items-center justify-between text-[11px] font-mono text-slate-400 px-1 mb-1.5">
                         <span className="flex items-center gap-1">
                           <MapPin className="w-3.5 h-3.5 text-amber-400" />
                           Location ({caseData.complaint.latitude.toFixed(4)}°, {caseData.complaint.longitude.toFixed(4)}°)
                         </span>
+                        {/* Standard / Satellite Layer Switcher with transparent labels */}
+                        <MapLayerToggle mapLayer={mapLayer} onToggle={setMapLayer} />
                       </div>
-                      <div className="h-44 w-full rounded-lg overflow-hidden border border-slate-800 z-0">
+                      <div className="h-[500px] w-full rounded-lg overflow-hidden border border-slate-800 z-0">
                         <MapContainer
                           center={[caseData.complaint.latitude, caseData.complaint.longitude]}
                           zoom={14}
                           scrollWheelZoom={false}
                           style={{ height: '100%', width: '100%' }}
                         >
-                          <TileLayer
-                            attribution='&copy; OpenStreetMap'
-                            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                          />
+                          <CivicMapLayers mapLayer={mapLayer} />
                           {boundaries && (
                             <GeoJSON
                               data={boundaries}
@@ -671,7 +692,10 @@ export default function ReviewWorkspace({ onSelectComplaint }) {
                               }}
                             />
                           )}
-                          <Marker position={[caseData.complaint.latitude, caseData.complaint.longitude]}>
+                          <Marker 
+                            key={`review-marker-${caseData.complaint.latitude}-${caseData.complaint.longitude}`}
+                            position={[caseData.complaint.latitude, caseData.complaint.longitude]}
+                          >
                             <Popup>
                               <div className="text-xs font-mono font-bold">
                                 {caseData.complaint.complaint_code}

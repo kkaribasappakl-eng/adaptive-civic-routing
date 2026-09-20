@@ -1,5 +1,6 @@
 const complaintService = require('../services/complaintService');
 const aiService = require('../services/aiService');
+const { pool } = require('../config/db');
 
 /**
  * AI-Assisted Issue Classification
@@ -27,6 +28,18 @@ const classifyComplaint = async (req, res, next) => {
 const submitComplaint = async (req, res, next) => {
   try {
     const photoUrl = req.file ? `/uploads/complaints/${req.file.filename}` : null;
+
+    // Contact consistency: For authenticated citizens, obtain registered mobile number
+    // from the authenticated account and strictly enforce it as citizen_contact.
+    // Client-provided different numbers CANNOT replace the registered phone identity.
+    if (req.user?.id) {
+      const userRes = await pool.query('SELECT phone FROM users WHERE id = $1;', [req.user.id]);
+      const registeredPhone = userRes.rows[0]?.phone;
+      if (registeredPhone) {
+        req.body.citizen_contact = registeredPhone;
+      }
+      req.body.submitted_by_user_id = req.user.id;
+    }
 
     const result = await complaintService.createComplaint(req.body, photoUrl);
 

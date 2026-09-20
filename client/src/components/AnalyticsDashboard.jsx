@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { MapContainer, TileLayer, CircleMarker, Popup, useMap } from 'react-leaflet';
+import { MapContainer, CircleMarker, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
+import CivicMapLayers from './CivicMapLayers';
+import MapLayerToggle from './MapLayerToggle';
 
 // Fix default Leaflet icon paths in Vite bundles
 delete L.Icon.Default.prototype._getIconUrl;
@@ -121,6 +123,7 @@ export default function AnalyticsDashboard() {
   const [lastRefreshed, setLastRefreshed] = useState(null);
   const [activeSpatialCategory, setActiveSpatialCategory] = useState('ALL');
   const [highlightComplaintCode, setHighlightComplaintCode] = useState('');
+  const [mapLayer, setMapLayer] = useState('standard');
 
   // Debounced refresh ref
   const refreshTimeoutRef = useRef(null);
@@ -285,7 +288,7 @@ export default function AnalyticsDashboard() {
       {/* ========================================================================= */}
       {/* SECTION 1: HEADER CONTROLS, FILTERS & DEMO DATA NOTICE                    */}
       {/* ========================================================================= */}
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-4">
+      <div className="bg-[#0d1424]/90 border border-slate-800/90 rounded-2xl p-6 shadow-xl space-y-4 backdrop-blur">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-2">
@@ -406,7 +409,7 @@ export default function AnalyticsDashboard() {
       </div>
 
       {loading && !overview ? (
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-12 text-center">
+        <div className="bg-[#0d1424]/90 border border-slate-800/90 rounded-2xl p-12 text-center backdrop-blur">
           <RefreshCw className="w-8 h-8 text-emerald-400 animate-spin mx-auto mb-3" />
           <p className="text-slate-300 font-medium">Aggregating real operational analytics from PostgreSQL...</p>
         </div>
@@ -423,7 +426,7 @@ export default function AnalyticsDashboard() {
 
             <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-4">
               {/* Total Complaints */}
-              <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 shadow-lg">
+              <div className="bg-[#0d1424]/90 border border-slate-800/90 rounded-2xl p-4 shadow-lg backdrop-blur">
                 <div className="flex items-center justify-between text-xs text-slate-400 mb-1">
                   <span>TOTAL COMPLAINTS</span>
                   <FileText className="w-4 h-4 text-slate-400" />
@@ -437,7 +440,7 @@ export default function AnalyticsDashboard() {
               </div>
 
               {/* Routed */}
-              <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 shadow-lg">
+              <div className="bg-[#0d1424]/90 border border-slate-800/90 rounded-2xl p-4 shadow-lg backdrop-blur">
                 <div className="flex items-center justify-between text-xs text-cyan-400 mb-1">
                   <span>ROUTED</span>
                   <Compass className="w-4 h-4 text-cyan-400" />
@@ -451,7 +454,7 @@ export default function AnalyticsDashboard() {
               </div>
 
               {/* Open / Active */}
-              <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 shadow-lg">
+              <div className="bg-[#0d1424]/90 border border-slate-800/90 rounded-2xl p-4 shadow-lg backdrop-blur">
                 <div className="flex items-center justify-between text-xs text-amber-400 mb-1">
                   <span>ACTIVE / OPEN</span>
                   <Clock className="w-4 h-4 text-amber-400" />
@@ -465,7 +468,7 @@ export default function AnalyticsDashboard() {
               </div>
 
               {/* Resolved */}
-              <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 shadow-lg">
+              <div className="bg-[#0d1424]/90 border border-slate-800/90 rounded-2xl p-4 shadow-lg backdrop-blur">
                 <div className="flex items-center justify-between text-xs text-emerald-400 mb-1">
                   <span>RESOLVED</span>
                   <CheckCircle2 className="w-4 h-4 text-emerald-400" />
@@ -479,7 +482,7 @@ export default function AnalyticsDashboard() {
               </div>
 
               {/* Human Review Queue */}
-              <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 shadow-lg">
+              <div className="bg-[#0d1424]/90 border border-slate-800/90 rounded-2xl p-4 shadow-lg backdrop-blur">
                 <div className="flex items-center justify-between text-xs text-purple-400 mb-1">
                   <span>HUMAN REVIEW</span>
                   <Users className="w-4 h-4 text-purple-400" />
@@ -493,7 +496,7 @@ export default function AnalyticsDashboard() {
               </div>
 
               {/* SLA Warnings */}
-              <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 shadow-lg">
+              <div className="bg-[#0d1424]/90 border border-slate-800/90 rounded-2xl p-4 shadow-lg backdrop-blur">
                 <div className="flex items-center justify-between text-xs text-amber-400 mb-1">
                   <span>SLA AT RISK</span>
                   <AlertTriangle className="w-4 h-4 text-amber-400" />
@@ -507,7 +510,7 @@ export default function AnalyticsDashboard() {
               </div>
 
               {/* SLA Breaches */}
-              <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 shadow-lg">
+              <div className="bg-[#0d1424]/90 border border-slate-800/90 rounded-2xl p-4 shadow-lg backdrop-blur">
                 <div className="flex items-center justify-between text-xs text-rose-400 mb-1">
                   <span>SLA BREACHED</span>
                   <AlertTriangle className="w-4 h-4 text-rose-400" />
@@ -521,7 +524,7 @@ export default function AnalyticsDashboard() {
               </div>
 
               {/* SLA Compliance Rate */}
-              <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 shadow-lg col-span-2 md:col-span-1">
+              <div className="bg-[#0d1424]/90 border border-slate-800/90 rounded-2xl p-4 shadow-lg backdrop-blur col-span-2 md:col-span-1">
                 <div className="flex items-center justify-between text-xs text-emerald-400 mb-1">
                   <span>SLA COMPLIANCE</span>
                   <ShieldCheck className="w-4 h-4 text-emerald-400" />
@@ -539,7 +542,7 @@ export default function AnalyticsDashboard() {
           {/* ========================================================================= */}
           {/* SECTION 3: COMPLAINT TRENDS (RESPONSIVE SVG TIME-SERIES)                  */}
           {/* ========================================================================= */}
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-4">
+          <div className="bg-[#0d1424]/90 border border-slate-800/90 rounded-2xl p-6 shadow-xl space-y-4 backdrop-blur">
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="text-sm font-semibold uppercase tracking-wider text-slate-300 flex items-center gap-2">
@@ -624,7 +627,7 @@ export default function AnalyticsDashboard() {
             {/* ========================================================================= */}
             {/* SECTION 4: CATEGORY BREAKDOWN                                             */}
             {/* ========================================================================= */}
-            <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-4">
+            <div className="bg-[#0d1424]/90 border border-slate-800/90 rounded-2xl p-6 shadow-xl space-y-4 backdrop-blur">
               <h3 className="text-sm font-semibold uppercase tracking-wider text-slate-300 flex items-center gap-2">
                 <PieChart className="w-4 h-4 text-emerald-400" />
                 3. Category Distribution ({categoryData?.totalComplaints || 0} Total)
@@ -671,7 +674,7 @@ export default function AnalyticsDashboard() {
             {/* ========================================================================= */}
             {/* SECTION 5: ROUTING INTELLIGENCE MATRIX                                    */}
             {/* ========================================================================= */}
-            <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-4">
+            <div className="bg-[#0d1424]/90 border border-slate-800/90 rounded-2xl p-6 shadow-xl space-y-4 backdrop-blur">
               <h3 className="text-sm font-semibold uppercase tracking-wider text-slate-300 flex items-center gap-2">
                 <Compass className="w-4 h-4 text-cyan-400" />
                 4. Deterministic Routing Intelligence
@@ -749,7 +752,7 @@ export default function AnalyticsDashboard() {
                 authorities.map((auth) => (
                   <div 
                     key={auth.authorityId}
-                    className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-lg space-y-4"
+                    className="bg-[#0d1424]/90 border border-slate-800/90 rounded-2xl p-5 shadow-lg space-y-4 backdrop-blur"
                   >
                     <div className="flex items-center justify-between border-b border-slate-800 pb-3">
                       <div>
@@ -801,7 +804,7 @@ export default function AnalyticsDashboard() {
           {/* ========================================================================= */}
           {/* SECTION 7: DEPARTMENT WORKLOAD                                            */}
           {/* ========================================================================= */}
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-4">
+          <div className="bg-[#0d1424]/90 border border-slate-800/90 rounded-2xl p-6 shadow-xl space-y-4 backdrop-blur">
             <h3 className="text-sm font-semibold uppercase tracking-wider text-slate-300 flex items-center gap-2">
               <Building2 className="w-4 h-4 text-cyan-400" />
               6. Municipal Department Workload Distribution
@@ -852,7 +855,7 @@ export default function AnalyticsDashboard() {
             {/* ========================================================================= */}
             {/* SECTION 8: SLA HEALTH & COMPLIANCE BENCHMARKS                             */}
             {/* ========================================================================= */}
-            <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-4">
+            <div className="bg-[#0d1424]/90 border border-slate-800/90 rounded-2xl p-6 shadow-xl space-y-4 backdrop-blur">
               <div className="flex items-center justify-between">
                 <h3 className="text-sm font-semibold uppercase tracking-wider text-slate-300 flex items-center gap-2">
                   <ShieldCheck className="w-4 h-4 text-emerald-400" />
@@ -920,7 +923,7 @@ export default function AnalyticsDashboard() {
             {/* ========================================================================= */}
             {/* SECTION 9: HUMAN REVIEW QUEUE ANALYTICS                                   */}
             {/* ========================================================================= */}
-            <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-4">
+            <div className="bg-[#0d1424]/90 border border-slate-800/90 rounded-2xl p-6 shadow-xl space-y-4 backdrop-blur">
               <h3 className="text-sm font-semibold uppercase tracking-wider text-slate-300 flex items-center gap-2">
                 <Users className="w-4 h-4 text-purple-400" />
                 8. Operator Human-in-the-Loop Queue
@@ -971,7 +974,7 @@ export default function AnalyticsDashboard() {
           {/* ========================================================================= */}
           {/* SECTION 10: JURISDICTION HISTORICAL PROVENANCE                            */}
           {/* ========================================================================= */}
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-4">
+          <div className="bg-[#0d1424]/90 border border-slate-800/90 rounded-2xl p-6 shadow-xl space-y-4 backdrop-blur">
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="text-sm font-semibold uppercase tracking-wider text-slate-300 flex items-center gap-2">
@@ -1036,7 +1039,7 @@ export default function AnalyticsDashboard() {
           {/* ========================================================================= */}
           {/* SECTION 11: SPATIAL COMPLAINT DISTRIBUTION                                */}
           {/* ========================================================================= */}
-          <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 shadow-xl space-y-4">
+          <div className="bg-[#0d1424]/90 border border-slate-800/90 rounded-2xl p-6 shadow-xl space-y-4 backdrop-blur">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
               <div>
                 <h3 className="text-sm font-semibold uppercase tracking-wider text-slate-300 flex items-center gap-2">
@@ -1083,21 +1086,22 @@ export default function AnalyticsDashboard() {
                     <option value="OTHER">Other</option>
                   </select>
                 </div>
+
+                {/* Standard / Satellite Layer Switcher */}
+                <MapLayerToggle mapLayer={mapLayer} onToggle={setMapLayer} className="ml-1" />
               </div>
             </div>
 
-            {/* Leaflet Map */}
-            <div className="h-[450px] w-full rounded-xl overflow-hidden border border-slate-800 relative z-0">
+            {/* Leaflet Map (Medium Size 540px) */}
+            <div className="h-[540px] w-full rounded-2xl overflow-hidden border border-slate-800/90 shadow-inner relative z-0">
               <MapContainer
                 center={MYSURU_CENTER}
                 zoom={12}
                 className="h-full w-full"
                 scrollWheelZoom={false}
               >
-                <TileLayer
-                  attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                />
+                {/* CivicMapLayers renders OpenStreetMap tiles (https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png) with OpenStreetMap contributors attribution */}
+                <CivicMapLayers mapLayer={mapLayer} />
                 <MapInvalidator />
                 <MapAutoBounds
                   points={filteredComplaintPoints}

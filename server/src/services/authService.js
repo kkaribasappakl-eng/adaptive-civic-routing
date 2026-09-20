@@ -1,6 +1,7 @@
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { pool } = require('../config/db');
+const { validateAndNormalizeIndianPhone } = require('../utils/phoneUtils');
 
 const BCRYPT_ROUNDS = 10;
 const JWT_EXPIRES_IN = '24h';
@@ -122,6 +123,7 @@ const sanitizeUser = (user) => {
     fullName: sanitized.full_name,
     email: sanitized.email,
     role: sanitized.role,
+    phone: sanitized.phone || null,
     isActive: sanitized.is_active,
     createdByUserId: sanitized.created_by_user_id || null,
     createdAt: sanitized.created_at,
@@ -135,7 +137,7 @@ const sanitizeUser = (user) => {
  * STRICT SECURITY: Public registration ALWAYS sets role to 'CITIZEN'.
  * Any client-supplied role parameter is strictly rejected or overridden.
  */
-const registerCitizen = async ({ fullName, email, password }) => {
+const registerCitizen = async ({ fullName, email, password, phone }) => {
   if (!fullName || typeof fullName !== 'string' || !fullName.trim()) {
     const err = new Error('Full name is required.');
     err.status = 400;
@@ -162,6 +164,18 @@ const registerCitizen = async ({ fullName, email, password }) => {
     throw err;
   }
 
+  // Validate and normalize phone if provided (stored with the citizen account)
+  let normalizedPhone = null;
+  if (phone) {
+    const phoneRes = validateAndNormalizeIndianPhone(phone);
+    if (!phoneRes.valid) {
+      const err = new Error(phoneRes.error);
+      err.status = 400;
+      throw err;
+    }
+    normalizedPhone = phoneRes.normalized;
+  }
+
   // Check if email already registered
   const existing = await pool.query('SELECT id FROM users WHERE email = $1;', [cleanEmail]);
   if (existing.rows.length > 0) {
@@ -172,14 +186,14 @@ const registerCitizen = async ({ fullName, email, password }) => {
 
   const passwordHash = await hashPassword(password);
 
-  // Forced CITIZEN role
+  // Forced CITIZEN role with registered phone
   const insertQuery = `
-    INSERT INTO users (full_name, email, password_hash, role, is_active)
-    VALUES ($1, $2, $3, 'CITIZEN', TRUE)
-    RETURNING id, full_name, email, role, is_active, created_at, updated_at, last_login_at;
+    INSERT INTO users (full_name, email, password_hash, role, phone, is_active)
+    VALUES ($1, $2, $3, 'CITIZEN', $4, TRUE)
+    RETURNING id, full_name, email, role, phone, is_active, created_at, updated_at, last_login_at;
   `;
 
-  const res = await pool.query(insertQuery, [fullName.trim(), cleanEmail, passwordHash]);
+  const res = await pool.query(insertQuery, [fullName.trim(), cleanEmail, passwordHash, normalizedPhone]);
   const user = res.rows[0];
   const token = generateToken(user);
 
@@ -203,7 +217,7 @@ const login = async ({ email, password }) => {
   const cleanEmail = email.trim().toLowerCase();
 
   const userRes = await pool.query(
-    'SELECT id, full_name, email, password_hash, role, is_active, created_at, updated_at, last_login_at FROM users WHERE email = $1;',
+    'SELECT id, full_name, email, password_hash, role, phone, is_active, created_at, updated_at, last_login_at FROM users WHERE email = $1;',
     [cleanEmail]
   );
 
@@ -257,7 +271,7 @@ const demoLogin = async (role) => {
 
   // Find the seeded demo account for this role
   const userRes = await pool.query(
-    'SELECT id, full_name, email, password_hash, role, is_active, created_at, updated_at, last_login_at FROM users WHERE role = $1 AND is_active = TRUE ORDER BY created_at ASC LIMIT 1;',
+    'SELECT id, full_name, email, password_hash, role, phone, is_active, created_at, updated_at, last_login_at FROM users WHERE role = $1 AND is_active = TRUE ORDER BY created_at ASC LIMIT 1;',
     [targetRole]
   );
 
@@ -337,7 +351,7 @@ const provisionUserByAdmin = async ({ fullName, email, password, role }, adminUs
  */
 const getUserById = async (userId) => {
   const res = await pool.query(
-    'SELECT id, full_name, email, role, is_active, created_by_user_id, created_at, updated_at, last_login_at FROM users WHERE id = $1;',
+    'SELECT id, full_name, email, role, phone, is_active, created_by_user_id, created_at, updated_at, last_login_at FROM users WHERE id = $1;',
     [userId]
   );
   if (res.rows.length === 0) return null;

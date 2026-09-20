@@ -366,7 +366,8 @@ async function runStage13Tests() {
         latitude: 12.3050,
         longitude: 76.6550,
         citizenName: 'Audit Verifier',
-        citizenPhone: '9876543210'
+        citizen_contact: '9876543210',
+        photo_url: '/uploads/complaints/test_audit.jpg'
       })
     });
     assert(compRes.status === 201, 'Complaint submitted successfully');

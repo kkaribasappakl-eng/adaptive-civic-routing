@@ -10,7 +10,7 @@ export default function AccessGuard({
   const { role, isAuthenticated, demoLogin, openAuthModal } = useAuth();
 
   return (
-    <div className="max-w-2xl mx-auto my-12 p-8 rounded-2xl bg-slate-900/90 border border-slate-800 shadow-2xl backdrop-blur text-center animate-fade-in">
+    <div className="max-w-2xl mx-auto my-12 p-8 rounded-3xl bg-[#0d1424]/95 border border-slate-800/90 shadow-2xl backdrop-blur text-center animate-fade-in">
       {/* Icon */}
       <div className="w-16 h-16 rounded-2xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center mx-auto mb-5 text-amber-400">
         <Lock className="w-8 h-8" />
@@ -37,7 +37,7 @@ export default function AccessGuard({
       </p>
 
       {/* Quick Demo Login Options (Backend controlled, no passwords in bundle) */}
-      <div className="bg-slate-950/60 border border-slate-800 rounded-xl p-5 mb-6 text-left">
+      <div className="bg-[#0a0f1e]/80 border border-slate-800/80 rounded-2xl p-5 mb-6 text-left">
         <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-slate-400 mb-3">
           <Sparkles className="w-4 h-4 text-blue-400" />
           <span>Quick Demo Access (1-Click Switch)</span>

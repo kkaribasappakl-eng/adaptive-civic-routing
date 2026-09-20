@@ -44,7 +44,7 @@ export default function AuditLogDashboard() {
 
   // Data states
   const [logs, setLogs] = useState([]);
-  const [pagination, setPagination] = useState({ total: 0, limit: 25, offset: 0, has_more: false });
+  const [pagination, setPagination] = useState({ total: 0, limit: 25, offset: 0, page: 1, totalPages: 1, has_more: false });
   const [summary, setSummary] = useState(null);
   const [selectedLog, setSelectedLog] = useState(null);
   const [selectedLogDetail, setSelectedLogDetail] = useState(null);
@@ -85,7 +85,25 @@ export default function AuditLogDashboard() {
       const res = await getAuditLogs(params);
       if (res.success) {
         setLogs(res.data || []);
-        setPagination(res.pagination || { total: 0, limit: filters.limit, offset: filters.offset, has_more: false });
+        const raw = res.pagination || {};
+        const safeLimit = Number.isFinite(Number(raw.limit)) && Number(raw.limit) > 0 ? Number(raw.limit) : filters.limit || 25;
+        const safeOffset = Number.isFinite(Number(raw.offset)) ? Number(raw.offset) : (filters.offset || 0);
+        const safeTotal = Number.isFinite(Number(raw.total)) ? Number(raw.total) : 0;
+        const safePage = Number.isFinite(Number(raw.page)) && Number(raw.page) > 0
+          ? Number(raw.page)
+          : Math.floor(safeOffset / safeLimit) + 1;
+        const safeTotalPages = Number.isFinite(Number(raw.totalPages)) && Number(raw.totalPages) > 0
+          ? Number(raw.totalPages)
+          : Math.max(1, Math.ceil(safeTotal / safeLimit));
+
+        setPagination({
+          total: safeTotal,
+          limit: safeLimit,
+          offset: safeOffset,
+          page: safePage,
+          totalPages: safeTotalPages,
+          has_more: raw.has_more ?? (safeOffset + safeLimit < safeTotal)
+        });
       } else {
         setError(res.error || 'Failed to load audit records');
       }
@@ -202,13 +220,21 @@ export default function AuditLogDashboard() {
     return 'text-slate-300 bg-slate-800/60 border-slate-700';
   };
 
-  const currentPage = Math.floor(pagination.offset / pagination.limit) + 1;
-  const totalPages = Math.max(1, Math.ceil((pagination.total || 0) / pagination.limit));
+  const currentLimit = Number(filters.limit) || Number(pagination.limit) || 25;
+  const currentOffset = Number.isFinite(Number(filters.offset))
+    ? Number(filters.offset)
+    : (Number.isFinite(Number(pagination.offset)) ? Number(pagination.offset) : 0);
+  const totalRecords = Number.isFinite(Number(pagination.total)) ? Number(pagination.total) : 0;
+  const totalPages = Math.max(1, Number(pagination.totalPages) || Math.ceil(totalRecords / currentLimit) || 1);
+  const currentPage = Math.min(
+    Math.max(1, Number(pagination.page) || Math.floor(currentOffset / currentLimit) + 1),
+    totalPages
+  );
 
   return (
     <div className="space-y-6">
       {/* Top Header & Overview Banner */}
-      <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-xl relative overflow-hidden">
+      <div className="bg-[#0d1424]/90 border border-slate-800/90 rounded-2xl p-6 shadow-xl backdrop-blur relative overflow-hidden">
         <div className="absolute top-0 right-0 w-96 h-96 bg-amber-500/5 rounded-full blur-3xl pointer-events-none" />
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 relative z-10">
           <div>
@@ -260,7 +286,7 @@ export default function AuditLogDashboard() {
       {/* ========================================================================= */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Metric 1 */}
-        <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-lg relative overflow-hidden">
+        <div className="bg-[#0d1424]/90 border border-slate-800/90 rounded-2xl p-5 shadow-xl backdrop-blur relative overflow-hidden">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Total Ledger Records</span>
             <Database className="w-5 h-5 text-amber-400" />
@@ -275,7 +301,7 @@ export default function AuditLogDashboard() {
         </div>
 
         {/* Metric 2 */}
-        <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-lg relative overflow-hidden">
+        <div className="bg-[#0d1424]/90 border border-slate-800/90 rounded-2xl p-5 shadow-xl backdrop-blur relative overflow-hidden">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Recent 24h Activity</span>
             <Clock className="w-5 h-5 text-cyan-400" />
@@ -290,7 +316,7 @@ export default function AuditLogDashboard() {
         </div>
 
         {/* Metric 3 */}
-        <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-lg relative overflow-hidden">
+        <div className="bg-[#0d1424]/90 border border-slate-800/90 rounded-2xl p-5 shadow-xl backdrop-blur relative overflow-hidden">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Security & Denial Events</span>
             <ShieldAlert className="w-5 h-5 text-rose-400" />
@@ -305,7 +331,7 @@ export default function AuditLogDashboard() {
         </div>
 
         {/* Metric 4 */}
-        <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-lg relative overflow-hidden">
+        <div className="bg-[#0d1424]/90 border border-slate-800/90 rounded-2xl p-5 shadow-xl backdrop-blur relative overflow-hidden">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Active Actors & Roles</span>
             <Users className="w-5 h-5 text-purple-400" />
@@ -323,7 +349,7 @@ export default function AuditLogDashboard() {
       {/* ========================================================================= */}
       {/* SECTION 2: EVENT DISTRIBUTION & CATEGORY BREAKDOWN                       */}
       {/* ========================================================================= */}
-      <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-xl">
+      <div className="bg-[#0d1424]/90 border border-slate-800/90 rounded-2xl p-6 shadow-xl backdrop-blur">
         <h3 className="text-sm font-semibold text-white flex items-center gap-2 mb-4">
           <Layers className="w-4 h-4 text-cyan-400" />
           Section 2: Civic & Security Event Distribution
@@ -391,7 +417,7 @@ export default function AuditLogDashboard() {
       {/* ========================================================================= */}
       {/* SECTION 3: SECURITY & ACCESS DENIAL MONITOR                              */}
       {/* ========================================================================= */}
-      <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-xl">
+      <div className="bg-[#0d1424]/90 border border-slate-800/90 rounded-2xl p-6 shadow-xl backdrop-blur">
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-sm font-semibold text-white flex items-center gap-2">
             <ShieldAlert className="w-4 h-4 text-rose-400" />
@@ -449,7 +475,7 @@ export default function AuditLogDashboard() {
       {/* ========================================================================= */}
       {/* SECTION 4: AUDIT QUERY & FILTER TOOLBAR                                   */}
       {/* ========================================================================= */}
-      <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-xl space-y-4">
+      <div className="bg-[#0d1424]/90 border border-slate-800/90 rounded-2xl p-6 shadow-xl backdrop-blur space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <h3 className="text-sm font-semibold text-white flex items-center gap-2">
             <Filter className="w-4 h-4 text-amber-400" />
@@ -625,7 +651,7 @@ export default function AuditLogDashboard() {
       {/* ========================================================================= */}
       {/* SECTION 5: IMMUTABLE EVENT STREAM TABLE                                   */}
       {/* ========================================================================= */}
-      <div className="bg-slate-900 border border-slate-800 rounded-xl shadow-xl overflow-hidden">
+      <div className="bg-[#0d1424]/90 border border-slate-800/90 rounded-2xl shadow-xl backdrop-blur overflow-hidden">
         <div className="p-4 border-b border-slate-800 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <h3 className="text-sm font-semibold text-white flex items-center gap-2">
@@ -633,7 +659,7 @@ export default function AuditLogDashboard() {
               Section 5: Immutable Event Stream Ledger
             </h3>
             <span className="text-xs px-2 py-0.5 rounded-full bg-slate-800 text-slate-400 border border-slate-700 font-mono">
-              {pagination.total} records found
+              {totalRecords} records found
             </span>
           </div>
 
@@ -756,10 +782,10 @@ export default function AuditLogDashboard() {
       {/* SECTION 6: EVENT DETAIL DRAWER / CONTEXT INSPECTOR (MODAL / OVERLAY)     */}
       {/* ========================================================================= */}
       {selectedLog && (
-        <div className="fixed inset-0 z-50 flex items-center justify-end bg-black/60 backdrop-blur-sm p-4 animate-in fade-in">
-          <div className="bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-2xl h-[90vh] flex flex-col shadow-2xl overflow-hidden">
+        <div className="fixed inset-0 z-50 flex items-center justify-end bg-black/75 backdrop-blur-md p-4 animate-in fade-in">
+          <div className="bg-[#0d1424] border border-slate-800/90 rounded-2xl w-full max-w-2xl h-[90vh] flex flex-col shadow-2xl overflow-hidden">
             {/* Drawer Header */}
-            <div className="p-5 border-b border-slate-800 flex items-center justify-between bg-slate-950">
+            <div className="p-5 border-b border-slate-800 flex items-center justify-between bg-[#0a0f1e]/90 backdrop-blur">
               <div className="flex items-center gap-2">
                 <span className={`px-2.5 py-1 rounded text-xs font-mono font-bold border ${getActionColor(selectedLog.action)}`}>
                   {selectedLog.action}
@@ -899,7 +925,7 @@ export default function AuditLogDashboard() {
       {/* ========================================================================= */}
       {/* SECTION 7: IMMUTABILITY & TAMPER-PROOF ASSURANCE BADGE                    */}
       {/* ========================================================================= */}
-      <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-xl">
+      <div className="bg-[#0d1424]/90 border border-slate-800/90 rounded-2xl p-6 shadow-xl backdrop-blur">
         <h3 className="text-sm font-semibold text-white flex items-center gap-2 mb-3">
           <ShieldCheck className="w-4 h-4 text-emerald-400" />
           Section 7: PostgreSQL Database Immutability Guarantees
@@ -936,9 +962,9 @@ export default function AuditLogDashboard() {
       </div>
 
       {/* ========================================================================= */}
-      {/* SECTION 8: PAGINATION & QUICK CONTROLS                                    */}
+      {/* SECTION 8: PAGINATION CONTROLS                                            */}
       {/* ========================================================================= */}
-      <div className="bg-slate-900 border border-slate-800 rounded-xl p-4 shadow-xl flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+      <div className="bg-[#0d1424]/90 border border-slate-800/90 rounded-2xl p-4 shadow-xl backdrop-blur flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-3 text-xs text-slate-400">
           <span>Section 8: Page Size:</span>
           <select
@@ -952,14 +978,14 @@ export default function AuditLogDashboard() {
             <option value={100}>100 records</option>
           </select>
           <span>
-            Showing {logs.length > 0 ? filters.offset + 1 : 0} to {Math.min(filters.offset + filters.limit, pagination.total)} of {pagination.total} entries
+            Showing {logs.length > 0 ? currentOffset + 1 : 0} to {Math.min(currentOffset + currentLimit, totalRecords)} of {totalRecords} entries
           </span>
         </div>
 
         <div className="flex items-center gap-2">
           <button
-            onClick={() => handlePageChange(filters.offset - filters.limit)}
-            disabled={filters.offset === 0}
+            onClick={() => handlePageChange(currentOffset - currentLimit)}
+            disabled={currentOffset === 0 || currentPage <= 1}
             className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-750 disabled:opacity-40 disabled:pointer-events-none border border-slate-700 text-slate-300 text-xs font-semibold flex items-center gap-1 transition"
           >
             <ChevronLeft className="w-4 h-4" />
@@ -969,8 +995,8 @@ export default function AuditLogDashboard() {
             {currentPage} / {totalPages}
           </span>
           <button
-            onClick={() => handlePageChange(filters.offset + filters.limit)}
-            disabled={!pagination.has_more && filters.offset + filters.limit >= pagination.total}
+            onClick={() => handlePageChange(currentOffset + currentLimit)}
+            disabled={currentPage >= totalPages || (!pagination.has_more && currentOffset + currentLimit >= totalRecords)}
             className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-750 disabled:opacity-40 disabled:pointer-events-none border border-slate-700 text-slate-300 text-xs font-semibold flex items-center gap-1 transition"
           >
             Next

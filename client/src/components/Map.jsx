@@ -4,6 +4,9 @@ import L from 'leaflet';
 import { MapPin, Navigation, Info, Search, CheckCircle2, AlertCircle, RefreshCw, Layers } from 'lucide-react';
 import { testGisCoordinates, getJurisdictionBoundaries } from '../services/api';
 
+import CivicMapLayers from './CivicMapLayers';
+import MapLayerToggle from './MapLayerToggle';
+
 // Fix default Leaflet icon paths in Vite bundles
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
@@ -32,6 +35,7 @@ export default function Map({ activeVersionCode, targetCoord }) {
   const [boundaries, setBoundaries] = useState(null);
   const [loading, setLoading] = useState(false);
   const [selectedVersionOverride, setSelectedVersionOverride] = useState('');
+  const [mapLayer, setMapLayer] = useState('standard');
 
   // Load boundaries GeoJSON whenever activeVersionCode changes
   useEffect(() => {
@@ -96,10 +100,10 @@ export default function Map({ activeVersionCode, targetCoord }) {
   };
 
   return (
-    <div className="relative w-full h-full rounded-xl overflow-hidden border border-slate-800 bg-slate-900 shadow-2xl flex flex-col">
+    <div className="relative w-full rounded-2xl overflow-hidden border border-slate-800/90 bg-[#0d1424] shadow-2xl flex flex-col">
       {/* Map Header Toolbar with GIS Test Probe Controls */}
-      <div className="px-4 py-3 bg-slate-900 border-b border-slate-800 flex flex-wrap items-center justify-between gap-3 text-xs">
-        <div className="flex items-center gap-2 text-slate-300">
+      <div className="px-4 py-3 bg-[#0a0f1e]/80 backdrop-blur border-b border-slate-800/80 flex flex-wrap items-center justify-between gap-3 text-xs">
+        <div className="flex flex-wrap items-center gap-2 text-slate-300">
           <MapPin className="w-4 h-4 text-civic-400" />
           <span className="font-semibold text-white">PostGIS Spatial Probe</span>
           <span className="text-slate-400 font-mono">
@@ -110,6 +114,9 @@ export default function Map({ activeVersionCode, targetCoord }) {
               Active: {activeVersionCode}
             </span>
           )}
+
+          {/* Satellite / Standard Layer Switcher */}
+          <MapLayerToggle mapLayer={mapLayer} onToggle={setMapLayer} />
         </div>
 
         {/* Preset Coordinate Testing Buttons */}
@@ -149,21 +156,17 @@ export default function Map({ activeVersionCode, targetCoord }) {
         </div>
       </div>
 
-      {/* Map Viewport Container */}
-      <div className="flex-1 w-full min-h-[520px] relative">
+      {/* Map Viewport Container - Medium Size (520px) */}
+      <div className="w-full h-[520px] relative">
         <MapContainer
           center={MYSURU_CENTER}
           zoom={DEFAULT_ZOOM}
           scrollWheelZoom={true}
           className="w-full h-full"
           id="civic-map-container"
-          style={{ height: '520px', width: '100%', minHeight: '520px' }}
+          style={{ height: '520px', width: '100%' }}
         >
-          <TileLayer
-            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-            maxZoom={19}
-          />
+          <CivicMapLayers mapLayer={mapLayer} />
           <MapClickHandler onMapClick={(lat, lng) => runGisProbe(lat, lng)} />
 
           {/* Real PostGIS GeoJSON Polygons */}
@@ -178,7 +181,10 @@ export default function Map({ activeVersionCode, targetCoord }) {
 
           {/* Active Probe Marker (if within valid range) */}
           {selectedCoord.lat >= -90 && selectedCoord.lat <= 90 && (
-            <Marker position={[selectedCoord.lat, selectedCoord.lng]}>
+            <Marker 
+              key={`probe-marker-${selectedCoord.lat}-${selectedCoord.lng}`}
+              position={[selectedCoord.lat, selectedCoord.lng]}
+            >
               <Popup className="custom-popup">
                 <div className="p-1 text-slate-900">
                   <p className="font-bold text-sm">Probe Coordinate</p>
@@ -195,7 +201,7 @@ export default function Map({ activeVersionCode, targetCoord }) {
         </MapContainer>
 
         {/* Floating GIS Resolution Overlay Panel */}
-        <div className="absolute top-4 right-4 z-[500] bg-slate-900/95 backdrop-blur-md p-4 rounded-xl border border-slate-700/80 shadow-2xl text-xs max-w-sm w-full">
+        <div className="absolute top-4 right-4 z-[500] bg-[#0d1424]/95 backdrop-blur-md p-4 rounded-2xl border border-slate-800/90 shadow-2xl text-xs max-w-sm w-full">
           <div className="flex items-center justify-between mb-2 pb-2 border-b border-slate-800">
             <span className="font-semibold text-white flex items-center gap-1.5">
               <Search className="w-3.5 h-3.5 text-civic-400" />
@@ -271,7 +277,7 @@ export default function Map({ activeVersionCode, targetCoord }) {
         </div>
 
         {/* Legend in bottom corner */}
-        <div className="absolute bottom-4 left-4 z-[500] bg-slate-900/90 backdrop-blur-md p-3 rounded-lg border border-slate-700/60 shadow-lg text-xs max-w-xs space-y-1.5">
+        <div className="absolute bottom-4 left-4 z-[500] bg-[#0d1424]/90 backdrop-blur-md p-3.5 rounded-xl border border-slate-800/90 shadow-lg text-xs max-w-xs space-y-1.5">
           <div className="flex items-center gap-1.5 font-semibold text-slate-200">
             <Layers className="w-3.5 h-3.5 text-civic-400" />
             <span>PostGIS Boundary Layers</span>

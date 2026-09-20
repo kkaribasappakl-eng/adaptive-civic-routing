@@ -186,8 +186,8 @@ export default function RoutingView() {
     <div className="space-y-6">
       {/* Metrics Banner */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="p-4 bg-slate-900 border border-slate-800 rounded-xl shadow-lg flex items-center gap-4">
-          <div className="p-3 bg-cyan-500/10 text-cyan-400 rounded-lg border border-cyan-500/30">
+        <div className="p-5 bg-[#0d1424]/90 border border-slate-800/90 rounded-2xl shadow-xl flex items-center gap-4 backdrop-blur">
+          <div className="p-3 bg-cyan-500/10 text-cyan-400 rounded-xl border border-cyan-500/30 shadow-inner">
             <Cpu className="w-6 h-6" />
           </div>
           <div>
@@ -197,19 +197,19 @@ export default function RoutingView() {
           </div>
         </div>
 
-        <div className="p-4 bg-slate-900 border border-slate-800 rounded-xl shadow-lg flex items-center gap-4">
-          <div className="p-3 bg-emerald-500/10 text-emerald-400 rounded-lg border border-emerald-500/30">
+        <div className="p-5 bg-[#0d1424]/90 border border-slate-800/90 rounded-2xl shadow-xl flex items-center gap-4 backdrop-blur">
+          <div className="p-3 bg-teal-500/10 text-teal-400 rounded-xl border border-teal-500/30 shadow-inner">
             <CheckCircle2 className="w-6 h-6" />
           </div>
           <div>
             <span className="text-xs text-slate-400 font-mono uppercase tracking-wider block">PostGIS Resolved</span>
-            <span className="text-2xl font-bold text-emerald-400 font-mono">{routedCount}</span>
+            <span className="text-2xl font-bold text-teal-400 font-mono">{routedCount}</span>
             <span className="text-[10px] text-slate-500 block">Containment Match</span>
           </div>
         </div>
 
-        <div className="p-4 bg-slate-900 border border-slate-800 rounded-xl shadow-lg flex items-center gap-4">
-          <div className="p-3 bg-amber-500/10 text-amber-400 rounded-lg border border-amber-500/30">
+        <div className="p-5 bg-[#0d1424]/90 border border-slate-800/90 rounded-2xl shadow-xl flex items-center gap-4 backdrop-blur">
+          <div className="p-3 bg-amber-500/10 text-amber-400 rounded-xl border border-amber-500/30 shadow-inner">
             <AlertTriangle className="w-6 h-6" />
           </div>
           <div>
@@ -219,8 +219,8 @@ export default function RoutingView() {
           </div>
         </div>
 
-        <div className="p-4 bg-slate-900 border border-slate-800 rounded-xl shadow-lg flex items-center gap-4">
-          <div className="p-3 bg-indigo-500/10 text-indigo-400 rounded-lg border border-indigo-500/30">
+        <div className="p-5 bg-[#0d1424]/90 border border-slate-800/90 rounded-2xl shadow-xl flex items-center gap-4 backdrop-blur">
+          <div className="p-3 bg-indigo-500/10 text-indigo-400 rounded-xl border border-indigo-500/30 shadow-inner">
             <ShieldCheck className="w-6 h-6" />
           </div>
           <div>
@@ -232,11 +232,11 @@ export default function RoutingView() {
       </div>
 
       {/* Main Decisions Audit Log */}
-      <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-xl space-y-4">
+      <div className="bg-[#0d1424]/90 border border-slate-800/90 rounded-2xl p-5 sm:p-6 shadow-xl space-y-4 backdrop-blur">
         {/* Controls Bar */}
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 border-b border-slate-800 pb-4">
-          <div className="flex items-center gap-2">
-            <div className="p-2 bg-cyan-500/10 text-cyan-400 rounded-lg border border-cyan-500/30">
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 border-b border-slate-800/80 pb-4">
+          <div className="flex items-center gap-2.5">
+            <div className="p-2 bg-cyan-500/10 text-cyan-400 rounded-xl border border-cyan-500/30">
               <Compass className="w-5 h-5" />
             </div>
             <div>
@@ -251,40 +251,40 @@ export default function RoutingView() {
 
           <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
             {/* Search Input */}
-            <div className="relative flex-1 sm:w-60">
-              <Search className="w-4 h-4 text-slate-400 absolute left-2.5 top-2.5" />
+            <div className="relative flex-1 sm:w-64">
+              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
               <input
                 type="text"
                 placeholder="Search code, authority..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-9 pr-3 py-1.5 bg-slate-950 border border-slate-800 rounded-lg text-xs text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500 font-mono"
+                className="w-full pl-9 pr-3 py-1.5 bg-[#070b16] border border-slate-800 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500/30 font-mono"
               />
             </div>
 
             {/* Filter Buttons */}
-            <div className="flex items-center gap-1 bg-slate-950 p-1 rounded-lg border border-slate-800 text-xs font-semibold">
+            <div className="flex items-center gap-1 bg-[#070b16] p-1 rounded-xl border border-slate-800 text-xs font-semibold">
               <button
                 onClick={() => setFilterStatus('ALL')}
-                className={`px-2.5 py-1 rounded transition ${filterStatus === 'ALL' ? 'bg-slate-800 text-white' : 'text-slate-400 hover:text-slate-200'}`}
+                className={`px-3 py-1 rounded-lg transition ${filterStatus === 'ALL' ? 'bg-slate-800 text-white shadow' : 'text-slate-400 hover:text-slate-200'}`}
               >
                 All
               </button>
               <button
                 onClick={() => setFilterStatus('ROUTED')}
-                className={`px-2.5 py-1 rounded transition ${filterStatus === 'ROUTED' ? 'bg-emerald-900/60 text-emerald-300' : 'text-slate-400 hover:text-slate-200'}`}
+                className={`px-3 py-1 rounded-lg transition ${filterStatus === 'ROUTED' ? 'bg-teal-950/80 text-teal-300 border border-teal-500/40 shadow' : 'text-slate-400 hover:text-slate-200'}`}
               >
                 Routed
               </button>
               <button
                 onClick={() => setFilterStatus('HUMAN_REVIEW')}
-                className={`px-2.5 py-1 rounded transition ${filterStatus === 'HUMAN_REVIEW' ? 'bg-amber-900/60 text-amber-300' : 'text-slate-400 hover:text-slate-200'}`}
+                className={`px-3 py-1 rounded-lg transition ${filterStatus === 'HUMAN_REVIEW' ? 'bg-amber-950/80 text-amber-300 border border-amber-500/40 shadow' : 'text-slate-400 hover:text-slate-200'}`}
               >
                 Review
               </button>
               <button
                 onClick={() => setFilterStatus('AWAITING')}
-                className={`px-2.5 py-1 rounded transition ${filterStatus === 'AWAITING' ? 'bg-cyan-900/60 text-cyan-300' : 'text-slate-400 hover:text-slate-200'}`}
+                className={`px-3 py-1 rounded-lg transition ${filterStatus === 'AWAITING' ? 'bg-cyan-950/80 text-cyan-300 border border-cyan-500/40 shadow' : 'text-slate-400 hover:text-slate-200'}`}
               >
                 Awaiting
               </button>
@@ -293,7 +293,7 @@ export default function RoutingView() {
             <button
               onClick={() => loadDecisions(searchTerm)}
               disabled={loading}
-              className="p-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg transition"
+              className="p-2 bg-slate-800/80 hover:bg-slate-750 text-slate-300 rounded-xl border border-slate-750 transition"
               title="Refresh decisions"
             >
               <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
@@ -328,22 +328,22 @@ export default function RoutingView() {
               return (
                 <div
                   key={d.id}
-                  className="p-4 bg-slate-950/70 border border-slate-800/80 hover:border-slate-700 rounded-xl transition space-y-3"
+                  className="p-4 bg-[#070b16]/80 border border-slate-800/90 hover:border-slate-700 rounded-xl transition-all duration-150 space-y-3"
                 >
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <div className="flex items-center gap-2">
                       <span className="font-mono text-xs font-bold text-cyan-400">
                         {complaintCode}
                       </span>
-                      <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-slate-800 text-slate-300 border border-slate-700">
+                      <span className="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase bg-slate-800/90 text-slate-300 border border-slate-700/80">
                         {category}
                       </span>
-                      <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase border flex items-center gap-1 ${
+                      <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase border flex items-center gap-1 ${
                         isRouted
-                          ? 'bg-emerald-950 text-emerald-400 border-emerald-500/30'
+                          ? 'bg-teal-950/80 text-teal-300 border-teal-500/40'
                           : isAwaiting
-                            ? 'bg-cyan-950 text-cyan-400 border-cyan-500/30'
-                            : 'bg-amber-950 text-amber-400 border-amber-500/30'
+                            ? 'bg-cyan-950/80 text-cyan-300 border-cyan-500/40'
+                            : 'bg-amber-950/80 text-amber-300 border-amber-500/40'
                       }`}>
                         {isRouted ? <CheckCircle2 className="w-3 h-3" /> : isAwaiting ? <Clock className="w-3 h-3" /> : <AlertTriangle className="w-3 h-3" />}
                         {isAwaiting ? 'Awaiting Routing' : status}
@@ -351,56 +351,58 @@ export default function RoutingView() {
                     </div>
 
                     <div className="flex items-center gap-2">
-                      <span className="text-[10px] font-mono text-slate-500 flex items-center gap-1">
+                      <span className="text-[10px] font-mono text-slate-400 flex items-center gap-1">
                         <Clock className="w-3 h-3" />
                         {formattedDate}
                       </span>
                       <button
                         onClick={() => setSelectedDecision(d)}
-                        className="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded text-xs font-medium flex items-center gap-1 transition border border-slate-700"
+                        className="px-2.5 py-1 bg-slate-800/80 hover:bg-slate-750 text-slate-200 rounded-lg text-xs font-medium flex items-center gap-1 transition border border-slate-700"
                       >
-                        <Info className="w-3.5 h-3.5 text-cyan-400" />
-                        Details
+                        <Info className="w-3.5 h-3.5 text-teal-400" />
+                        <span>Proof Details</span>
                       </button>
                     </div>
                   </div>
 
-                  {/* Routing Details Grid */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 text-xs">
-                    <div className="p-2 bg-slate-900/60 rounded border border-slate-800/60">
-                      <span className="text-[10px] text-slate-500 block">Authority</span>
-                      <span className="font-semibold text-slate-200">
-                        {authorityName}
+                  {/* Decision metadata details grid */}
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2 border-t border-slate-800/60 text-xs">
+                    <div className="p-2.5 bg-[#0b1020]/90 rounded-lg border border-slate-800/80">
+                      <span className="text-[10px] text-slate-500 block uppercase font-mono">Assigned Authority</span>
+                      <span className="font-semibold text-slate-200 block truncate">
+                        {authorityName || (isAwaiting ? 'Pending calculation' : 'Unassigned')}
                       </span>
                     </div>
 
-                    <div className="p-2 bg-slate-900/60 rounded border border-slate-800/60">
-                      <span className="text-[10px] text-slate-500 block">Department</span>
-                      <span className="font-semibold text-slate-200">
-                        {departmentName}
+                    <div className="p-2.5 bg-[#0b1020]/90 rounded-lg border border-slate-800/80">
+                      <span className="text-[10px] text-slate-500 block uppercase font-mono">Department</span>
+                      <span className="font-semibold text-slate-200 block truncate">
+                        {departmentName || (isAwaiting ? 'Pending calculation' : 'Human Review')}
                       </span>
                     </div>
 
-                    <div className="p-2 bg-slate-900/60 rounded border border-slate-800/60">
-                      <span className="text-[10px] text-slate-500 block">Jurisdiction Zone</span>
-                      <span className="text-slate-300">
-                        {jurisdictionName}
+                    <div className="p-2.5 bg-[#0b1020]/90 rounded-lg border border-slate-800/80">
+                      <span className="text-[10px] text-slate-500 block uppercase font-mono">Jurisdiction Zone</span>
+                      <span className="text-slate-300 block truncate">
+                        {jurisdictionName || (isAwaiting ? 'Pending containment' : 'None (Outside)')}
                       </span>
                     </div>
 
-                    <div className="p-2 bg-slate-900/60 rounded border border-slate-800/60">
-                      <span className="text-[10px] text-slate-500 block">Jurisdiction Version</span>
-                      <span className="font-mono text-cyan-300">
-                        {versionCode}
+                    <div className="p-2.5 bg-[#0b1020]/90 rounded-lg border border-slate-800/80">
+                      <span className="text-[10px] text-slate-500 block uppercase font-mono">Bound Version</span>
+                      <span className="font-mono text-cyan-300 block truncate">
+                        {versionCode || (isAwaiting ? 'Active V1' : 'None')}
                       </span>
                     </div>
                   </div>
 
-                  {/* Dynamic Explanation Quote */}
-                  <div className="p-2.5 bg-slate-900/90 rounded-lg border border-slate-800/80 text-xs font-mono text-slate-300 leading-relaxed">
-                    <span className="text-[10px] text-slate-500 block uppercase mb-0.5">Spatial Reason:</span>
-                    "{reasonText}"
-                  </div>
+                  {/* Justification note */}
+                  {reasonText && (
+                    <div className="text-[11px] text-slate-400 bg-[#0b1020]/60 p-2.5 rounded-lg border border-slate-800/60 font-mono">
+                      <span className="text-slate-500 uppercase font-semibold text-[10px] mr-1.5">Rule Proof:</span>
+                      {reasonText}
+                    </div>
+                  )}
                 </div>
               );
             })
@@ -408,11 +410,15 @@ export default function RoutingView() {
         </div>
       </div>
 
-      {/* Modal */}
+      {/* Decision Detail & Spatial Proof Modal */}
       {selectedDecision && (
         <RoutingDecisionModal
           decision={selectedDecision}
-          complaint={{ complaint_code: selectedDecision.complaint_code }}
+          complaint={{
+            complaint_code: selectedDecision.complaint_code || selectedDecision.complaintCode,
+            category: selectedDecision.category,
+            description: selectedDecision.description || 'Civic intake record'
+          }}
           onClose={() => setSelectedDecision(null)}
         />
       )}

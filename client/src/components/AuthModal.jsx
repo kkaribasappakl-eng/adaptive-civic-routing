@@ -84,8 +84,8 @@ const AuthModal = () => {
 
   const handleRegister = async (e) => {
     e.preventDefault();
-    if (!fullName || !email || !password) {
-      setError('Full name, email, and password are required.');
+    if (!fullName || !email || !password || !phoneNumber) {
+      setError('Full name, email, mobile number, and password are required.');
       return;
     }
     setLoading(true);
@@ -104,18 +104,18 @@ const AuthModal = () => {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4 overflow-y-auto animate-fade-in">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 backdrop-blur-md p-4 overflow-y-auto animate-fade-in">
       <div 
-        className="relative w-full max-w-md rounded-2xl bg-slate-900 border border-slate-700/70 shadow-2xl overflow-hidden transition-all text-slate-100"
+        className="relative w-full max-w-md rounded-2xl bg-[#0d1424] border border-slate-800/90 shadow-2xl overflow-hidden transition-all text-slate-100"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Top Gradient Banner */}
-        <div className="h-2 bg-gradient-to-r from-blue-600 via-indigo-500 to-purple-600" />
+        <div className="h-1.5 bg-gradient-to-r from-teal-500 via-blue-500 to-indigo-500" />
 
         {/* Header */}
-        <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b border-slate-800">
+        <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b border-slate-800/80 bg-[#070b16]/90">
           <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-lg bg-blue-500/10 border border-blue-500/30 flex items-center justify-center text-blue-400">
+            <div className="w-9 h-9 rounded-xl bg-teal-500/10 border border-teal-500/30 flex items-center justify-center text-teal-400 shadow-inner">
               <Shield className="w-5 h-5" />
             </div>
             <div>
@@ -127,7 +127,7 @@ const AuthModal = () => {
           </div>
           <button
             onClick={closeAuthModal}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition"
+            className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800/80 transition"
             aria-label="Close modal"
           >
             <X className="w-5 h-5" />
@@ -136,20 +136,20 @@ const AuthModal = () => {
 
         {/* Modal Notice / Redirect Context */}
         {authModalConfig?.message && (
-          <div className="mx-6 mt-4 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-300 text-xs flex items-center gap-2.5">
+          <div className="mx-6 mt-4 p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-300 text-xs flex items-center gap-2.5">
             <ShieldAlert className="w-4 h-4 flex-shrink-0 text-amber-400" />
             <span>{authModalConfig.message}</span>
           </div>
         )}
 
         {/* Tabs */}
-        <div className="flex px-6 pt-4 border-b border-slate-800/80 gap-4">
+        <div className="flex px-6 pt-4 border-b border-slate-800/80 gap-4 bg-[#070b16]/50">
           <button
             type="button"
             onClick={() => { setActiveTab('demo'); setError(null); }}
             className={`pb-2.5 text-xs font-semibold border-b-2 flex items-center gap-1.5 transition ${
               activeTab === 'demo'
-                ? 'border-blue-500 text-blue-400'
+                ? 'border-teal-400 text-teal-300'
                 : 'border-transparent text-slate-400 hover:text-slate-200'
             }`}
           >
@@ -161,7 +161,7 @@ const AuthModal = () => {
             onClick={() => { setActiveTab('login'); setError(null); }}
             className={`pb-2.5 text-xs font-semibold border-b-2 flex items-center gap-1.5 transition ${
               activeTab === 'login'
-                ? 'border-blue-500 text-blue-400'
+                ? 'border-teal-400 text-teal-300'
                 : 'border-transparent text-slate-400 hover:text-slate-200'
             }`}
           >
@@ -173,12 +173,12 @@ const AuthModal = () => {
             onClick={() => { setActiveTab('register'); setError(null); }}
             className={`pb-2.5 text-xs font-semibold border-b-2 flex items-center gap-1.5 transition ${
               activeTab === 'register'
-                ? 'border-blue-500 text-blue-400'
+                ? 'border-teal-400 text-teal-300'
                 : 'border-transparent text-slate-400 hover:text-slate-200'
             }`}
           >
             <UserPlus className="w-3.5 h-3.5" />
-            Register Citizen
+            Citizen Register
           </button>
         </div>
 
@@ -374,7 +374,7 @@ const AuthModal = () => {
 
             <div>
               <label className="block text-xs font-semibold text-slate-300 mb-1">
-                Mobile Number (Optional)
+                Mobile Number *
               </label>
               <div className="relative">
                 <Phone className="absolute left-3 top-2.5 w-4 h-4 text-slate-500" />
@@ -382,8 +382,9 @@ const AuthModal = () => {
                   type="tel"
                   value={phoneNumber}
                   onChange={(e) => setPhoneNumber(e.target.value)}
-                  placeholder="9876543210"
-                  className="w-full pl-9 pr-3 py-2 bg-slate-800/90 border border-slate-700 rounded-lg text-sm text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 transition"
+                  placeholder="e.g. 9845012345"
+                  className="w-full pl-9 pr-3 py-2 bg-slate-800/90 border border-slate-700 rounded-lg text-sm text-white placeholder-slate-500 focus:outline-none focus:border-teal-500 transition font-mono"
+                  required
                 />
               </div>
             </div>

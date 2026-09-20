@@ -180,11 +180,11 @@ export default function ComplaintFeed({ newComplaint }) {
   };
 
   return (
-    <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-2xl space-y-4">
+    <div className="bg-[#0d1424]/90 border border-slate-800/90 rounded-2xl p-5 shadow-2xl space-y-4 backdrop-blur">
       {/* Header */}
-      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800 pb-3">
-        <div className="flex items-center gap-2">
-          <div className="p-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-400">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800/80 pb-3">
+        <div className="flex items-center gap-2.5">
+          <div className="p-1.5 rounded-lg bg-teal-500/10 border border-teal-500/30 text-teal-400">
             <Radio className="w-4 h-4 animate-pulse" />
           </div>
           <div>
@@ -200,7 +200,7 @@ export default function ComplaintFeed({ newComplaint }) {
         <button
           onClick={loadComplaints}
           disabled={loading}
-          className="p-1.5 rounded bg-slate-800 hover:bg-slate-700 text-slate-300 transition"
+          className="p-1.5 rounded-lg bg-slate-800/80 hover:bg-slate-750 text-slate-300 border border-slate-750 transition"
           title="Refresh Feed"
         >
           <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
@@ -209,7 +209,7 @@ export default function ComplaintFeed({ newComplaint }) {
 
       {/* Dismissible Error Banner */}
       {feedError && (
-        <div className="p-2.5 rounded-lg bg-rose-950/50 border border-rose-500/40 text-rose-300 text-xs flex items-center justify-between gap-2 animate-in fade-in">
+        <div className="p-2.5 rounded-xl bg-rose-950/50 border border-rose-500/40 text-rose-300 text-xs flex items-center justify-between gap-2 animate-in fade-in">
           <div className="flex items-center gap-2">
             <AlertTriangle className="w-4 h-4 shrink-0 text-rose-400" />
             <span>{feedError}</span>
@@ -244,32 +244,32 @@ export default function ComplaintFeed({ newComplaint }) {
             return (
               <div
                 key={item.id || item.complaint_code}
-                className={`p-3 rounded-lg border transition-all ${
+                className={`p-3.5 rounded-xl border transition-all duration-150 ${
                   isNew
-                    ? 'bg-emerald-950/40 border-emerald-500/60 ring-1 ring-emerald-500/40 shadow-lg shadow-emerald-950/30'
-                    : 'bg-slate-950/70 border-slate-800/80 hover:border-slate-700'
+                    ? 'bg-teal-950/40 border-teal-500/60 ring-1 ring-teal-500/40 shadow-lg shadow-teal-950/30'
+                    : 'bg-[#070b16]/80 border-slate-800/90 hover:border-slate-700/90'
                 }`}
               >
                 <div className="flex items-center justify-between gap-2 mb-1.5">
-                  <span className="font-mono text-xs font-bold text-emerald-400 flex items-center gap-1">
+                  <span className="font-mono text-xs font-bold text-teal-300 flex items-center gap-1">
                     <FileCheck className="w-3.5 h-3.5 text-slate-400" />
                     {item.complaint_code}
                   </span>
                   <div className="flex items-center gap-1.5">
-                    <span className="px-1.5 py-0.5 rounded text-[9px] font-bold uppercase bg-slate-800 text-slate-300 border border-slate-700">
+                    <span className="px-2 py-0.5 rounded-md text-[9px] font-bold uppercase bg-slate-800/90 text-slate-300 border border-slate-700/80">
                       {item.category}
                     </span>
-                    <span className={`px-1.5 py-0.5 rounded text-[9px] font-bold uppercase border ${
+                    <span className={`px-2 py-0.5 rounded-md text-[9px] font-bold uppercase border ${
                       isRouted
-                        ? 'bg-emerald-950 text-emerald-400 border-emerald-500/30'
+                        ? 'bg-teal-950/80 text-teal-300 border-teal-500/40'
                         : isReview
-                        ? 'bg-amber-950 text-amber-400 border-amber-500/30'
-                        : 'bg-slate-800 text-slate-300 border-slate-700'
+                        ? 'bg-amber-950/80 text-amber-300 border-amber-500/40'
+                        : 'bg-slate-800/90 text-slate-300 border-slate-700'
                     }`}>
                       {item.status}
                     </span>
                     {item.sla_status && (
-                      <span className={`px-1.5 py-0.5 rounded text-[8px] font-mono font-bold uppercase border ${
+                      <span className={`px-2 py-0.5 rounded-md text-[8px] font-mono font-bold uppercase border ${
                         item.sla_status === 'SLA_BREACHED'
                           ? 'bg-rose-950 text-rose-300 border-rose-500/50'
                           : item.sla_status === 'AT_RISK'
@@ -287,15 +287,15 @@ export default function ComplaintFeed({ newComplaint }) {
                 </p>
 
                 {/* Stage 5 Deterministic Routing Actions */}
-                <div className="flex items-center justify-between gap-2 my-2 pt-2 border-t border-slate-800/40">
+                <div className="flex items-center justify-between gap-2 my-2 pt-2 border-t border-slate-800/60">
                   <div className="text-[10px] text-slate-400 font-mono">
                     {isRouted ? (
-                      <span className="text-emerald-400 flex items-center gap-1">
-                        <CheckCircle2 className="w-3 h-3" /> PostGIS Routed
+                      <span className="text-teal-300 flex items-center gap-1 font-semibold">
+                        <CheckCircle2 className="w-3 h-3 text-teal-400" /> PostGIS Routed
                       </span>
                     ) : isReview ? (
-                      <span className="text-amber-400 flex items-center gap-1">
-                        <AlertTriangle className="w-3 h-3" /> Review Required
+                      <span className="text-amber-300 flex items-center gap-1 font-semibold">
+                        <AlertTriangle className="w-3 h-3 text-amber-400" /> Review Required
                       </span>
                     ) : (
                       <span className="text-slate-500">Awaiting Spatial Route</span>
@@ -308,13 +308,13 @@ export default function ComplaintFeed({ newComplaint }) {
                         <button
                           onClick={() => handleRouteClick(item)}
                           disabled={isBusy}
-                          className="px-2.5 py-1 bg-civic-600 hover:bg-civic-500 disabled:opacity-50 text-white rounded text-[10px] font-semibold flex items-center gap-1 transition shadow-sm"
+                          className="px-2.5 py-1 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 disabled:opacity-50 text-white rounded-lg text-[10px] font-semibold flex items-center gap-1 transition shadow-sm"
                         >
                           <Zap className={`w-3 h-3 ${isBusy ? 'animate-spin' : 'text-amber-300'}`} />
                           {isBusy ? 'Routing...' : 'Route Complaint'}
                         </button>
                       ) : (
-                        <span className="px-2 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700 text-[10px] font-mono">
+                        <span className="px-2 py-0.5 rounded-lg bg-slate-800/80 text-slate-400 border border-slate-700 text-[10px] font-mono">
                           Awaiting Operator Routing
                         </span>
                       )
@@ -322,9 +322,9 @@ export default function ComplaintFeed({ newComplaint }) {
                       <button
                         onClick={() => handleViewDecision(item)}
                         disabled={loadingDecision}
-                        className="px-2 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded text-[10px] font-mono flex items-center gap-1 transition border border-slate-700"
+                        className="px-2.5 py-1 bg-slate-800/80 hover:bg-slate-750 text-slate-200 rounded-lg text-[10px] font-mono flex items-center gap-1 transition border border-slate-700"
                       >
-                        <Info className="w-3 h-3 text-civic-400" />
+                        <Info className="w-3 h-3 text-cyan-400" />
                         View Decision
                       </button>
                     )}
@@ -332,28 +332,28 @@ export default function ComplaintFeed({ newComplaint }) {
                     {/* Stage 6: Case Tracker */}
                     <button
                       onClick={() => setTrackingComplaintId(item.id)}
-                      className="px-2 py-1 bg-emerald-950/70 hover:bg-emerald-900/80 text-emerald-300 rounded text-[10px] font-semibold flex items-center gap-1 transition border border-emerald-500/40 shadow-sm"
+                      className="px-2.5 py-1 bg-gradient-to-r from-teal-950/80 to-emerald-950/80 hover:from-teal-900 hover:to-emerald-900 text-teal-200 rounded-lg text-[10px] font-semibold flex items-center gap-1 transition border border-teal-500/40 shadow-sm"
                       title="Track Complaint Lifecycle & Actions"
                     >
-                      <Clock className="w-3 h-3 text-emerald-400" />
+                      <Clock className="w-3 h-3 text-teal-400" />
                       Track Case
                     </button>
                   </div>
                 </div>
 
-                <div className="flex flex-wrap items-center justify-between text-[10px] text-slate-400 font-mono pt-1.5 border-t border-slate-800/60 gap-1">
+                <div className="flex flex-wrap items-center justify-between text-[10px] text-slate-400 font-mono pt-2 border-t border-slate-800/60 gap-1">
                   <span className="flex items-center gap-1">
-                    <MapPin className="w-3 h-3 text-civic-400" />
+                    <MapPin className="w-3 h-3 text-teal-400" />
                     {parseFloat(item.latitude).toFixed(4)}°, {parseFloat(item.longitude).toFixed(4)}°
                   </span>
 
                   <div className="flex items-center gap-2">
                     {item.photo_url && (
-                      <span className="text-slate-400 flex items-center gap-0.5" title="Photo Evidence Attached">
-                        <Camera className="w-3 h-3 text-civic-400" /> Photo
+                      <span className="text-slate-400 flex items-center gap-1" title="Photo Evidence Attached">
+                        <Camera className="w-3 h-3 text-teal-400" /> Photo
                       </span>
                     )}
-                    <span className="text-slate-500 flex items-center gap-0.5">
+                    <span className="text-slate-500 flex items-center gap-1">
                       <Clock className="w-3 h-3" />
                       {new Date(item.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                     </span>

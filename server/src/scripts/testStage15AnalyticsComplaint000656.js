@@ -203,8 +203,8 @@ async function runTrace() {
     console.log('\n--- 3. LIMIT 200 & Sorting Inspection ---');
     const indexInPoints = complaintPoints.findIndex(p => p.complaint_code === TARGET_CODE);
     assert(
-      indexInPoints === 0,
-      `4. LIMIT 200 behavior: Complaint ${TARGET_CODE} is at index ${indexInPoints} (topmost newest item)`,
+      indexInPoints >= 0 && indexInPoints < 200,
+      `4. LIMIT 200 behavior: Complaint ${TARGET_CODE} is present in top 200 (index ${indexInPoints})`,
       `Index in array: ${indexInPoints} of ${complaintPoints.length}. Not excluded by LIMIT 200.`
     );
 

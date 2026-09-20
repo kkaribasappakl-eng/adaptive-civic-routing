@@ -61,7 +61,7 @@ const requireAuth = async (req, res, next) => {
     
     // Verify user exists and is active in database
     const userRes = await pool.query(
-      'SELECT id, full_name, email, role, is_active FROM users WHERE id = $1;',
+      'SELECT id, full_name, email, role, phone, is_active FROM users WHERE id = $1;',
       [decoded.id]
     );
 
@@ -87,7 +87,8 @@ const requireAuth = async (req, res, next) => {
       id: user.id,
       fullName: user.full_name,
       email: user.email,
-      role: user.role
+      role: user.role,
+      phone: user.phone || null
     };
 
     next();
@@ -149,7 +150,7 @@ const optionalAuth = async (req, res, next) => {
   try {
     const decoded = verifyToken(token);
     const userRes = await pool.query(
-      'SELECT id, full_name, email, role, is_active FROM users WHERE id = $1;',
+      'SELECT id, full_name, email, role, phone, is_active FROM users WHERE id = $1;',
       [decoded.id]
     );
     if (userRes.rows.length > 0 && userRes.rows[0].is_active) {
@@ -158,7 +159,8 @@ const optionalAuth = async (req, res, next) => {
         id: user.id,
         fullName: user.full_name,
         email: user.email,
-        role: user.role
+        role: user.role,
+        phone: user.phone || null
       };
     } else {
       req.user = null;

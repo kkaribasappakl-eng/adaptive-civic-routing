@@ -179,10 +179,10 @@ export default function NotificationCenter({ onSelectComplaint }) {
       {isOpen && (
         <div 
           id="notification-center-dropdown"
-          className="absolute right-0 mt-2 w-80 sm:w-96 bg-slate-900 border border-slate-800 rounded-xl shadow-2xl z-50 overflow-hidden flex flex-col max-h-[550px]"
+          className="absolute right-0 mt-2 w-80 sm:w-96 bg-[#0d1424] border border-slate-800/90 rounded-2xl shadow-2xl z-50 overflow-hidden flex flex-col max-h-[550px] backdrop-blur-xl"
         >
           {/* Header */}
-          <div className="p-3.5 bg-slate-950 border-b border-slate-800 flex items-center justify-between">
+          <div className="p-3.5 bg-[#0a0f1e]/90 border-b border-slate-800 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Bell className="w-4 h-4 text-emerald-400" />
               <span className="text-xs font-bold text-white uppercase tracking-wider">Citizen Notifications</span>

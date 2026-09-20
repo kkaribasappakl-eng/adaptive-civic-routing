@@ -1,6 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { MapContainer, TileLayer, Marker, useMapEvents, useMap } from 'react-leaflet';
+import { MapContainer, Marker, useMapEvents, useMap } from 'react-leaflet';
 import L from 'leaflet';
+import CivicMapLayers from './CivicMapLayers';
+import MapLayerToggle from './MapLayerToggle';
 import {
   FileText,
   Camera,
@@ -23,6 +25,7 @@ import {
   submitCitizenComplaint,
   checkDuplicateReports
 } from '../services/api';
+import { useAuth } from '../context/AuthContext';
 
 // Fix default Leaflet icon paths in Vite bundles
 delete L.Icon.Default.prototype._getIconUrl;
@@ -92,6 +95,8 @@ function PinLocationHandler({ onLocationChange }) {
 }
 
 export default function ComplaintForm({ onComplaintSubmitted, onTrackComplaint }) {
+  const { user, isAuthenticated } = useAuth();
+
   // Form State
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState('');
@@ -99,8 +104,16 @@ export default function ComplaintForm({ onComplaintSubmitted, onTrackComplaint }
   const [categoryConfidence, setCategoryConfidence] = useState(null);
   const [contact, setContact] = useState('');
   const [coords, setCoords] = useState({ lat: 12.2958, lng: 76.6394 }); // Mysuru Palace default
+  const [mapLayer, setMapLayer] = useState('standard'); // 'standard' | 'satellite'
   const [photoFile, setPhotoFile] = useState(null);
   const [photoPreview, setPhotoPreview] = useState(null);
+
+  // Auto-sync registered phone number for authenticated citizens
+  useEffect(() => {
+    if (user?.phone) {
+      setContact(user.phone);
+    }
+  }, [user?.phone]);
 
   // Status & AI State
   const [submitting, setSubmitting] = useState(false);
@@ -271,7 +284,7 @@ export default function ComplaintForm({ onComplaintSubmitted, onTrackComplaint }
     setCategory('');
     setCategorySource('MANUAL');
     setCategoryConfidence(null);
-    setContact('');
+    setContact(user?.phone || '');
     setPhotoFile(null);
     if (photoPreview) URL.revokeObjectURL(photoPreview);
     setPhotoPreview(null);
@@ -294,50 +307,50 @@ export default function ComplaintForm({ onComplaintSubmitted, onTrackComplaint }
   if (submittedData) {
     const c = submittedData.complaint;
     return (
-      <div className="bg-slate-900 border border-slate-800 rounded-xl p-6 shadow-2xl space-y-6">
+      <div className="bg-[#0d1424]/90 border border-slate-800/90 rounded-2xl p-6 shadow-2xl space-y-6 backdrop-blur">
         <div className="text-center space-y-2">
-          <div className="w-12 h-12 rounded-full bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 flex items-center justify-center mx-auto">
-            <CheckCircle2 className="w-7 h-7" />
+          <div className="w-14 h-14 rounded-2xl bg-teal-500/20 border border-teal-500/40 text-teal-400 flex items-center justify-center mx-auto shadow-lg shadow-teal-950/40">
+            <CheckCircle2 className="w-8 h-8" />
           </div>
-          <h3 className="text-lg font-bold text-white">Complaint Submitted Successfully</h3>
+          <h3 className="text-lg font-bold text-white tracking-tight">Complaint Submitted Successfully</h3>
           <p className="text-xs text-slate-400">
             Your complaint has been permanently recorded in the PostgreSQL database.
           </p>
         </div>
 
         {/* Case ID banner */}
-        <div className="bg-slate-950 border border-slate-800 rounded-xl p-4 flex items-center justify-between">
+        <div className="bg-[#070b16] border border-slate-800/90 rounded-xl p-4 flex items-center justify-between shadow-inner">
           <div>
             <span className="text-[10px] uppercase font-mono tracking-wider text-slate-500 block">Case Tracking ID</span>
-            <span className="text-lg font-mono font-bold text-emerald-400">{c.complaint_code}</span>
+            <span className="text-lg font-mono font-bold text-teal-300">{c.complaint_code}</span>
           </div>
           <button
             onClick={copyCaseId}
-            className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium flex items-center gap-1.5 transition"
+            className="px-3.5 py-1.5 rounded-lg bg-slate-800/80 hover:bg-slate-750 text-slate-200 border border-slate-700 text-xs font-semibold flex items-center gap-1.5 transition"
           >
-            {copiedCode ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+            {copiedCode ? <Check className="w-3.5 h-3.5 text-teal-400" /> : <Copy className="w-3.5 h-3.5" />}
             {copiedCode ? 'Copied' : 'Copy ID'}
           </button>
         </div>
 
         {/* Persisted Details Summary */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-          <div className="bg-slate-950/70 border border-slate-800/80 rounded-lg p-3">
+          <div className="bg-[#070b16]/70 border border-slate-800/80 rounded-xl p-3.5">
             <span className="text-slate-400 block text-[11px]">Issue Category</span>
             <span className="font-bold text-white text-sm">{c.category}</span>
-            <div className="mt-1 flex items-center gap-1.5 text-[10px] text-slate-400 font-mono">
+            <div className="mt-1.5 flex items-center gap-1.5 text-[10px] text-slate-400 font-mono">
               <span>Source:</span>
-              <span className="px-1.5 py-0.2 rounded bg-slate-800 text-civic-300">{c.category_source}</span>
+              <span className="px-1.5 py-0.5 rounded bg-slate-800/90 text-teal-300 font-semibold">{c.category_source}</span>
               {c.category_confidence && (
                 <span>({(parseFloat(c.category_confidence) * 100).toFixed(0)}% conf)</span>
               )}
             </div>
           </div>
 
-          <div className="bg-slate-950/70 border border-slate-800/80 rounded-lg p-3">
+          <div className="bg-[#070b16]/70 border border-slate-800/80 rounded-xl p-3.5">
             <span className="text-slate-400 block text-[11px]">Initial Status</span>
-            <span className="font-bold text-emerald-400 text-sm flex items-center gap-1">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+            <span className="font-bold text-teal-300 text-sm flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-teal-400 animate-pulse" />
               {c.status}
             </span>
             <span className="text-[10px] text-slate-500 block mt-1">
@@ -345,7 +358,7 @@ export default function ComplaintForm({ onComplaintSubmitted, onTrackComplaint }
             </span>
           </div>
 
-          <div className="bg-slate-950/70 border border-slate-800/80 rounded-lg p-3">
+          <div className="bg-[#070b16]/70 border border-slate-800/80 rounded-xl p-3.5">
             <span className="text-slate-400 block text-[11px]">Location (PostGIS Point)</span>
             <span className="font-mono text-white text-xs">
               {parseFloat(c.latitude).toFixed(5)}° N, {parseFloat(c.longitude).toFixed(5)}° E
@@ -353,10 +366,12 @@ export default function ComplaintForm({ onComplaintSubmitted, onTrackComplaint }
             <span className="text-[10px] text-slate-500 block mt-0.5">SRID 4326 (WGS 84)</span>
           </div>
 
-          <div className="bg-slate-950/70 border border-slate-800/80 rounded-lg p-3">
+          <div className="bg-[#070b16]/70 border border-slate-800/80 rounded-xl p-3.5">
             <span className="text-slate-400 block text-[11px]">Photo Evidence</span>
             {c.photo_url ? (
-              <span className="text-emerald-400 font-medium">Uploaded & Attached</span>
+              <span className="text-teal-300 font-medium flex items-center gap-1">
+                <Check className="w-3.5 h-3.5" /> Uploaded & Attached
+              </span>
             ) : (
               <span className="text-slate-500">None attached</span>
             )}
@@ -364,18 +379,18 @@ export default function ComplaintForm({ onComplaintSubmitted, onTrackComplaint }
         </div>
 
         {/* Stage 14 Production notice */}
-        <div className="bg-slate-950/50 border border-slate-800/70 rounded-lg p-3 text-[11px] text-slate-400 flex items-start gap-2">
-          <Info className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+        <div className="bg-[#070b16]/50 border border-slate-800/70 rounded-xl p-3.5 text-[11px] text-slate-400 flex items-start gap-2.5">
+          <Info className="w-4 h-4 text-teal-400 shrink-0 mt-0.5" />
           <p className="leading-relaxed">
             <strong>Civic Tracking Active:</strong> Complaint is permanently registered in PostgreSQL.
             You can track this case live, view its PostGIS spatial routing, SLA milestones, and real-time status updates.
           </p>
         </div>
 
-        <div className="space-y-2">
+        <div className="space-y-2.5">
           <button
             onClick={() => onTrackComplaint && onTrackComplaint(c.id || c.complaint_code)}
-            className="w-full py-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition flex items-center justify-center gap-2 shadow-lg shadow-emerald-950/40"
+            className="w-full py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-bold transition flex items-center justify-center gap-2 shadow-lg shadow-teal-950/50"
           >
             <Clock className="w-4 h-4" />
             Track Case in Real Time
@@ -383,7 +398,7 @@ export default function ComplaintForm({ onComplaintSubmitted, onTrackComplaint }
 
           <button
             onClick={handleResetForm}
-            className="w-full py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-semibold transition flex items-center justify-center gap-2"
+            className="w-full py-2 rounded-xl bg-slate-800/80 hover:bg-slate-750 text-slate-300 text-xs font-semibold transition flex items-center justify-center gap-2 border border-slate-700/60"
           >
             <RefreshCw className="w-3.5 h-3.5" />
             Submit Another Civic Complaint
@@ -395,21 +410,23 @@ export default function ComplaintForm({ onComplaintSubmitted, onTrackComplaint }
 
   // Active Complaint Form
   return (
-    <form onSubmit={handleSubmit} className="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-2xl space-y-5">
+    <form onSubmit={handleSubmit} className="bg-[#0d1424]/90 border border-slate-800/90 rounded-2xl p-5 sm:p-6 shadow-2xl space-y-5 backdrop-blur">
       {/* Header */}
-      <div className="border-b border-slate-800 pb-3">
+      <div className="border-b border-slate-800/80 pb-3">
         <h2 className="text-base font-bold text-white flex items-center gap-2">
-          <FileText className="w-5 h-5 text-civic-400" />
+          <div className="p-1.5 rounded-lg bg-teal-500/10 text-teal-400 border border-teal-500/20">
+            <FileText className="w-4 h-4" />
+          </div>
           Report a Civic Issue (Citizen Portal)
         </h2>
-        <p className="text-xs text-slate-400 mt-0.5">
+        <p className="text-xs text-slate-400 mt-1">
           Submit municipal grievances with real location, photo evidence, and AI-assisted categorization.
         </p>
       </div>
 
       {/* Error Alert */}
       {errorMessage && (
-        <div className="p-3 rounded-lg bg-rose-950/40 border border-rose-500/40 text-rose-300 text-xs flex items-center gap-2">
+        <div className="p-3.5 rounded-xl bg-rose-950/40 border border-rose-500/40 text-rose-300 text-xs flex items-center gap-2">
           <AlertTriangle className="w-4 h-4 shrink-0 text-rose-400" />
           <span>{errorMessage}</span>
         </div>
@@ -427,7 +444,7 @@ export default function ComplaintForm({ onComplaintSubmitted, onTrackComplaint }
           placeholder="Describe the civic issue in detail (e.g., Deep crater on Irwin Road near City Bus Stand causing traffic slowdown)..."
           rows={3}
           maxLength={2000}
-          className="w-full p-3 rounded-lg bg-slate-950 border border-slate-800 text-slate-100 text-xs focus:border-civic-500 focus:outline-none transition resize-none placeholder:text-slate-600"
+          className="w-full p-3.5 rounded-xl bg-[#070b16] border border-slate-800 text-slate-100 text-xs focus:border-teal-500 focus:ring-1 focus:ring-teal-500/30 focus:outline-none transition resize-none placeholder:text-slate-600 font-sans"
           required
         />
       </div>
@@ -436,10 +453,10 @@ export default function ComplaintForm({ onComplaintSubmitted, onTrackComplaint }
       <div className="space-y-1.5">
         <div className="flex items-center justify-between">
           <label className="text-xs font-semibold text-slate-200 flex items-center gap-1.5">
-            <Camera className="w-3.5 h-3.5 text-civic-400" />
+            <Camera className="w-3.5 h-3.5 text-teal-400" />
             <span>Photo *</span>
           </label>
-          <span className="text-[10px] text-amber-400 font-medium bg-amber-950/60 px-1.5 py-0.5 rounded border border-amber-800/60">
+          <span className="text-[10px] text-amber-300 font-semibold bg-amber-950/60 px-2 py-0.5 rounded-full border border-amber-800/60 font-mono">
             Required
           </span>
         </div>
@@ -448,11 +465,13 @@ export default function ComplaintForm({ onComplaintSubmitted, onTrackComplaint }
         {!photoPreview ? (
           <div
             onClick={() => fileInputRef.current?.click()}
-            className="border-2 border-dashed border-slate-800 hover:border-civic-500/60 rounded-lg p-4 text-center cursor-pointer bg-slate-950/40 hover:bg-slate-950 transition"
+            className="border-2 border-dashed border-slate-800 hover:border-teal-500/50 rounded-xl p-5 text-center cursor-pointer bg-[#070b16]/60 hover:bg-[#070b16] transition-all duration-200 group"
           >
-            <Camera className="w-6 h-6 text-slate-500 mx-auto mb-1" />
-            <p className="text-xs font-medium text-slate-300">Click to upload photo evidence *</p>
-            <p className="text-[10px] text-slate-500 mt-0.5">JPEG, PNG, WebP up to 5MB (Required)</p>
+            <div className="w-10 h-10 rounded-xl bg-slate-800/60 group-hover:bg-teal-500/10 flex items-center justify-center mx-auto mb-2 text-slate-400 group-hover:text-teal-400 transition-colors border border-slate-700/60">
+              <Camera className="w-5 h-5" />
+            </div>
+            <p className="text-xs font-semibold text-slate-200 group-hover:text-teal-200 transition-colors">Click to upload photo evidence *</p>
+            <p className="text-[10px] text-slate-500 mt-1">JPEG, PNG, WebP up to 5MB (Required)</p>
             <input
               ref={fileInputRef}
               type="file"
@@ -462,15 +481,15 @@ export default function ComplaintForm({ onComplaintSubmitted, onTrackComplaint }
             />
           </div>
         ) : (
-          <div className="flex items-center gap-3 p-2 bg-slate-950 rounded-lg border border-slate-800">
+          <div className="flex items-center gap-3 p-2.5 bg-[#070b16] rounded-xl border border-slate-800">
             <img
               src={photoPreview}
               alt="Evidence Preview"
-              className="w-16 h-16 object-cover rounded border border-slate-700"
+              className="w-16 h-16 object-cover rounded-lg border border-slate-700"
             />
             <div className="flex-1 min-w-0 text-xs">
               <p className="text-slate-200 font-medium truncate">{photoFile?.name}</p>
-              <p className="text-slate-500 text-[10px]">{(photoFile?.size / 1024).toFixed(1)} KB</p>
+              <p className="text-slate-500 text-[10px] font-mono">{(photoFile?.size / 1024).toFixed(1)} KB</p>
             </div>
             <button
               type="button"
@@ -484,7 +503,7 @@ export default function ComplaintForm({ onComplaintSubmitted, onTrackComplaint }
       </div>
 
       {/* 3. Issue Category & AI Assistance */}
-      <div className="space-y-2 bg-slate-950/60 p-3.5 rounded-xl border border-slate-800">
+      <div className="space-y-2 bg-[#090e1c] p-4 rounded-xl border border-slate-800/90 shadow-inner">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <label className="text-xs font-semibold text-slate-200 flex items-center gap-1.5">
             <Sparkles className="w-3.5 h-3.5 text-amber-400" />
@@ -494,7 +513,7 @@ export default function ComplaintForm({ onComplaintSubmitted, onTrackComplaint }
             type="button"
             onClick={handleAiClassify}
             disabled={classifying || !description.trim()}
-            className="px-2.5 py-1 rounded bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-300 text-[11px] font-medium flex items-center gap-1.5 transition disabled:opacity-40"
+            className="px-3 py-1 rounded-lg bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-300 text-[11px] font-semibold flex items-center gap-1.5 transition disabled:opacity-40"
           >
             <Sparkles className={`w-3 h-3 ${classifying ? 'animate-spin' : ''}`} />
             {classifying ? 'Analyzing...' : 'Ask AI to Classify'}
@@ -503,14 +522,14 @@ export default function ComplaintForm({ onComplaintSubmitted, onTrackComplaint }
 
         {/* AI Result Feedback (when available) */}
         {aiResult?.available && aiResult.category && (
-          <div className="p-2.5 rounded-lg bg-amber-950/20 border border-amber-500/30 space-y-1.5 text-xs">
+          <div className="p-3 rounded-xl bg-amber-950/20 border border-amber-500/30 space-y-2 text-xs">
             <div className="flex items-center justify-between">
               <span className="font-semibold text-amber-300 flex items-center gap-1 text-[11px]">
                 <Sparkles className="w-3.5 h-3.5" />
                 AI Suggested: <strong>{aiResult.category}</strong>
               </span>
               {aiResult.confidence && (
-                <span className="font-mono text-[10px] text-amber-400/90">
+                <span className="font-mono text-[10px] text-amber-400/90 bg-amber-950/60 px-2 py-0.5 rounded border border-amber-800/50">
                   {(aiResult.confidence * 100).toFixed(0)}% confidence
                 </span>
               )}
@@ -518,13 +537,13 @@ export default function ComplaintForm({ onComplaintSubmitted, onTrackComplaint }
             {aiResult.explanation && (
               <p className="text-[11px] text-slate-300 leading-relaxed">{aiResult.explanation}</p>
             )}
-            <div className="pt-1.5 border-t border-amber-500/20 flex gap-2">
+            <div className="pt-2 border-t border-amber-500/20 flex gap-2">
               <button
                 type="button"
                 onClick={handleAcceptAi}
-                className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition ${
                   categorySource === 'AI_SUGGESTED'
-                    ? 'bg-emerald-600 text-white'
+                    ? 'bg-teal-600 text-white shadow'
                     : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
                 }`}
               >
@@ -533,9 +552,9 @@ export default function ComplaintForm({ onComplaintSubmitted, onTrackComplaint }
               <button
                 type="button"
                 onClick={handleOverrideAi}
-                className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition ${
                   categorySource === 'CITIZEN_SELECTED'
-                    ? 'bg-amber-600 text-white'
+                    ? 'bg-amber-600 text-white shadow'
                     : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
                 }`}
               >
@@ -547,7 +566,7 @@ export default function ComplaintForm({ onComplaintSubmitted, onTrackComplaint }
 
         {/* AI Unconfigured Notice */}
         {aiResult && !aiResult.available && (
-          <div className="p-2 rounded bg-slate-900 border border-slate-800 text-[11px] text-slate-400 flex items-start gap-1.5">
+          <div className="p-2.5 rounded-xl bg-[#070b16] border border-slate-800 text-[11px] text-slate-400 flex items-start gap-2">
             <Info className="w-3.5 h-3.5 text-slate-400 shrink-0 mt-0.5" />
             <span>{aiResult.reason || 'AI is not configured. Please choose category manually below.'}</span>
           </div>
@@ -561,7 +580,7 @@ export default function ComplaintForm({ onComplaintSubmitted, onTrackComplaint }
               setCategory(e.target.value);
               setCategorySource(aiResult?.available ? 'CITIZEN_SELECTED' : 'MANUAL');
             }}
-            className="w-full p-2.5 rounded-lg bg-slate-900 border border-slate-700 text-slate-200 text-xs focus:border-civic-500 focus:outline-none"
+            className="w-full p-2.5 rounded-xl bg-[#070b16] border border-slate-700/80 text-slate-200 text-xs focus:border-teal-500 focus:outline-none"
             required
           >
             <option value="">-- Choose Controlled Issue Category --</option>
@@ -576,37 +595,40 @@ export default function ComplaintForm({ onComplaintSubmitted, onTrackComplaint }
 
       {/* 4. Interactive Location Selector (Map + Coordinates) */}
       <div className="space-y-2">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <label className="text-xs font-semibold text-slate-200 flex items-center gap-1.5">
-            <MapPin className="w-3.5 h-3.5 text-civic-400" />
+            <MapPin className="w-3.5 h-3.5 text-teal-400" />
             Location Pinpoint (Leaflet) *
           </label>
-          <div className="flex items-center gap-1 text-[10px] font-mono text-slate-400">
-            <span>Lat: {coords.lat}</span>
-            <span>|</span>
-            <span>Lng: {coords.lng}</span>
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5 text-[10px] font-mono text-slate-400 bg-[#070b16] px-2.5 py-1 rounded-lg border border-slate-800">
+              <span>Lat: {coords.lat}</span>
+              <span className="text-slate-600">|</span>
+              <span>Lng: {coords.lng}</span>
+            </div>
+            {/* Standard / Satellite Layer Switcher with transparent roads & place labels */}
+            <MapLayerToggle mapLayer={mapLayer} onToggle={setMapLayer} />
           </div>
         </div>
 
-        {/* Leaflet Map for Citizen Location Pin */}
-        <div className="h-44 w-full rounded-lg overflow-hidden border border-slate-800 relative z-0">
+        {/* Leaflet Map for Citizen Location Pin (Medium-Large 500px) */}
+        <div className="h-[500px] w-full rounded-2xl overflow-hidden border border-slate-800/90 relative z-0 shadow-inner">
           <MapContainer
             center={[coords.lat, coords.lng]}
             zoom={13}
             scrollWheelZoom={false}
             className="w-full h-full"
-            style={{ height: '176px', width: '100%' }}
+            style={{ height: '500px', width: '100%' }}
           >
-            <TileLayer
-              attribution='&copy; OpenStreetMap'
-              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-            />
+            {/* CivicMapLayers renders OpenStreetMap tiles (https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png) with OpenStreetMap contributors attribution */}
+            <CivicMapLayers mapLayer={mapLayer} />
             <MapInvalidator />
             <MapRecenter coords={coords} />
             <PinLocationHandler
               onLocationChange={(lat, lng) => setCoords({ lat, lng })}
             />
             <Marker
+              key={`pin-${coords.lat}-${coords.lng}`}
               position={[coords.lat, coords.lng]}
               draggable={true}
               eventHandlers={{
@@ -632,7 +654,7 @@ export default function ComplaintForm({ onComplaintSubmitted, onTrackComplaint }
               step="0.000001"
               value={coords.lat}
               onChange={(e) => setCoords(prev => ({ ...prev, lat: parseFloat(e.target.value) || 0 }))}
-              className="w-full p-1.5 rounded bg-slate-950 border border-slate-800 text-slate-200 font-mono text-xs"
+              className="w-full p-2 rounded-lg bg-[#070b16] border border-slate-800 text-slate-200 font-mono text-xs focus:border-teal-500 focus:outline-none"
               required
             />
           </div>
@@ -643,7 +665,7 @@ export default function ComplaintForm({ onComplaintSubmitted, onTrackComplaint }
               step="0.000001"
               value={coords.lng}
               onChange={(e) => setCoords(prev => ({ ...prev, lng: parseFloat(e.target.value) || 0 }))}
-              className="w-full p-1.5 rounded bg-slate-950 border border-slate-800 text-slate-200 font-mono text-xs"
+              className="w-full p-2 rounded-lg bg-[#070b16] border border-slate-800 text-slate-200 font-mono text-xs focus:border-teal-500 focus:outline-none"
               required
             />
           </div>
@@ -652,7 +674,7 @@ export default function ComplaintForm({ onComplaintSubmitted, onTrackComplaint }
 
       {/* 5. Duplicate Warning Banner (Non-blocking) */}
       {duplicateNotice?.possibleDuplicate && (
-        <div className="p-3 rounded-lg bg-amber-950/30 border border-amber-500/40 text-xs text-amber-300 space-y-1">
+        <div className="p-3.5 rounded-xl bg-amber-950/30 border border-amber-500/40 text-xs text-amber-300 space-y-1">
           <div className="flex items-center gap-1.5 font-bold text-amber-400">
             <ShieldAlert className="w-4 h-4 shrink-0" />
             <span>Possible Duplicate Civic Report Detected</span>
@@ -667,28 +689,45 @@ export default function ComplaintForm({ onComplaintSubmitted, onTrackComplaint }
       <div className="space-y-1.5">
         <div className="flex items-center justify-between">
           <label className="text-xs font-semibold text-slate-200">
-            Phone Number *
+            Contact Number
           </label>
-          <span className="text-[10px] text-amber-400 font-medium bg-amber-950/60 px-1.5 py-0.5 rounded border border-amber-800/60">
-            Required
+          <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full border font-mono ${
+            isAuthenticated && user?.phone
+              ? 'text-teal-300 bg-teal-950/60 border-teal-800/60'
+              : 'text-amber-300 bg-amber-950/60 border-amber-800/60'
+          }`}>
+            {isAuthenticated && user?.phone ? 'Registered mobile number' : 'Required'}
           </span>
         </div>
-        <p className="text-[11px] text-slate-400">Required for complaint verification and follow-up</p>
-        <input
-          type="tel"
-          value={contact}
-          onChange={(e) => setContact(e.target.value)}
-          placeholder="e.g., 9845012345 or +91 98450 12345"
-          className="w-full p-2.5 rounded-lg bg-slate-950 border border-slate-800 text-slate-100 text-xs focus:border-civic-500 focus:outline-none font-mono placeholder:text-slate-600 transition"
-          required
-        />
+        <p className="text-[11px] text-slate-400">
+          {isAuthenticated && user?.phone
+            ? 'Linked to your authenticated citizen account'
+            : 'Required for complaint verification and follow-up'}
+        </p>
+        {isAuthenticated && user?.phone ? (
+          <div className="w-full p-3 rounded-xl bg-[#070b16] border border-teal-800/60 text-slate-100 text-xs font-mono flex items-center justify-between">
+            <span className="font-bold text-teal-300 text-sm tracking-wider">{user.phone}</span>
+            <span className="text-[10px] text-slate-400 bg-slate-900 px-2 py-0.5 rounded border border-slate-800">
+              Registered mobile number
+            </span>
+          </div>
+        ) : (
+          <input
+            type="tel"
+            value={contact}
+            onChange={(e) => setContact(e.target.value)}
+            placeholder="e.g., 9845012345 or +91 98450 12345"
+            className="w-full p-3 rounded-xl bg-[#070b16] border border-slate-800 text-slate-100 text-xs focus:border-teal-500 focus:ring-1 focus:ring-teal-500/30 focus:outline-none font-mono placeholder:text-slate-600 transition"
+            required
+          />
+        )}
       </div>
 
       {/* Submit Button */}
       <button
         type="submit"
         disabled={submitting}
-        className="w-full py-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold shadow-lg shadow-emerald-950/40 transition flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+        className="w-full py-3 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-bold shadow-lg shadow-emerald-950/50 transition-all duration-200 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
       >
         <Send className={`w-3.5 h-3.5 ${submitting ? 'animate-spin' : ''}`} />
         {submitting ? 'Persisting to PostGIS...' : 'Submit Citizen Complaint'}
@@ -696,3 +735,4 @@ export default function ComplaintForm({ onComplaintSubmitted, onTrackComplaint }
     </form>
   );
 }
+

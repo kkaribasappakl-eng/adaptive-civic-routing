@@ -29,10 +29,10 @@ export default function RoutingDecisionModal({ decision, complaint, onClose }) {
   const routingMethod = decision?.routing_method || decision?.routingMethod || (isAwaiting ? 'PENDING' : 'DETERMINISTIC_GIS');
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="bg-slate-900 border border-slate-700/80 rounded-2xl max-w-xl w-full shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-in fade-in duration-200">
+      <div className="bg-[#0d1424] border border-slate-800/90 rounded-2xl max-w-xl w-full shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-800 bg-slate-950/40">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-800 bg-[#0a0f1e]/80 backdrop-blur">
           <div className="flex items-center gap-3">
             <div className={`p-2 rounded-lg ${
               isRouted 
@@ -177,7 +177,7 @@ export default function RoutingDecisionModal({ decision, complaint, onClose }) {
         </div>
 
         {/* Footer */}
-        <div className="px-6 py-3 border-t border-slate-800 bg-slate-950/40 flex justify-end">
+        <div className="px-6 py-3 border-t border-slate-800 bg-[#0a0f1e]/80 flex justify-end">
           <button
             onClick={onClose}
             className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-lg text-xs font-semibold transition"

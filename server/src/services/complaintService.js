@@ -264,7 +264,8 @@ const createComplaint = async (inputData, photoRelativeUrl = null, autoRoute = t
   const metadata = {
     duplicateWarningIssued: duplicateInfo.possibleDuplicate,
     nearbyReportsFound: duplicateInfo.count,
-    submittedVia: 'citizen_web_portal'
+    submittedVia: 'citizen_web_portal',
+    ...(inputData.submitted_by_user_id ? { submittedByUserId: inputData.submitted_by_user_id } : {})
   };
 
   const result = await pool.query(insertQuery, [
@@ -493,6 +494,7 @@ const getComplaintById = async (idOrCode) => {
 };
 
 module.exports = {
+  validateAndNormalizeIndianPhone,
   validateComplaintInput,
   checkPotentialDuplicates,
   generateNextComplaintCode,

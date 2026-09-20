@@ -22,7 +22,8 @@ import {
   Bell,
   CheckCheck,
   Check,
-  ShieldCheck
+  ShieldCheck,
+  Phone
 } from 'lucide-react';
 import StatusTimeline from './StatusTimeline';
 import SlaStatusCard from './SlaStatusCard';
@@ -202,28 +203,28 @@ export default function CaseTrackerModal({ complaintId, onClose }) {
   const isHumanReview = status === 'HUMAN_REVIEW';
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="bg-slate-900 border border-slate-700/80 rounded-2xl max-w-2xl w-full shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-in fade-in duration-200">
+      <div className="bg-[#0d1424] border border-slate-800/90 rounded-2xl max-w-2xl w-full shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-800 bg-slate-950/40">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-800/80 bg-[#070b16]/90">
           <div className="flex items-center gap-3">
-            <div className="p-2 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
+            <div className="p-2 rounded-xl bg-teal-500/10 text-teal-400 border border-teal-500/30 shadow-inner">
               <FileCheck className="w-5 h-5" />
             </div>
             <div>
               <h2 className="text-base font-bold text-white flex items-center gap-2">
                 Case Follow-Through Tracker
-                <span className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded-full uppercase border ${
+                <span className={`text-[10px] font-mono font-bold px-2.5 py-0.5 rounded-full uppercase border ${
                   isClosed
                     ? 'bg-slate-800 text-slate-300 border-slate-700'
                     : isResolved
-                    ? 'bg-emerald-950 text-emerald-300 border-emerald-500/40'
+                    ? 'bg-emerald-950/80 text-emerald-300 border-emerald-500/40'
                     : isInProgress
-                    ? 'bg-blue-950 text-blue-300 border-blue-500/40'
+                    ? 'bg-blue-950/80 text-blue-300 border-blue-500/40'
                     : isRouted
-                    ? 'bg-emerald-950 text-emerald-400 border-emerald-500/40'
+                    ? 'bg-teal-950/80 text-teal-300 border-teal-500/40'
                     : isHumanReview
-                    ? 'bg-amber-950 text-amber-400 border-amber-500/40'
+                    ? 'bg-amber-950/80 text-amber-300 border-amber-500/40'
                     : 'bg-slate-800 text-slate-300 border-slate-700'
                 }`}>
                   {status}
@@ -239,14 +240,14 @@ export default function CaseTrackerModal({ complaintId, onClose }) {
             <button
               onClick={loadCase}
               disabled={loading}
-              className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition"
+              className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800/80 transition"
               title="Refresh case"
             >
-              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+              <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin text-teal-400' : ''}`} />
             </button>
             <button
               onClick={onClose}
-              className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition"
+              className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800/80 transition"
             >
               <X className="w-5 h-5" />
             </button>
@@ -291,6 +292,22 @@ export default function CaseTrackerModal({ complaintId, onClose }) {
                     )}
                   </div>
                 </div>
+
+                {/* Operator / Admin Authorized Reporter Contact View */}
+                {isOperator && data?.citizen_contact && (
+                  <div className="p-3 bg-blue-950/40 border border-blue-800/50 rounded-xl flex items-center justify-between text-xs font-mono">
+                    <div className="flex items-center gap-2.5">
+                      <Phone className="w-4 h-4 text-blue-400 shrink-0" />
+                      <div>
+                        <span className="text-[10px] text-slate-400 block uppercase font-mono">Reporter Contact</span>
+                        <span className="font-bold text-blue-200 text-sm">{data.citizen_contact}</span>
+                      </div>
+                    </div>
+                    <span className="text-[10px] text-blue-300 bg-blue-900/50 px-2 py-0.5 rounded border border-blue-700/60">
+                      Verified Identity
+                    </span>
+                  </div>
+                )}
 
                 {/* Routing Resolution Summary */}
                 {routing ? (

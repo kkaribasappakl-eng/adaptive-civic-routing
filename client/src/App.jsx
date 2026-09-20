@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import Header from './components/Header';
+import Sidebar from './components/Sidebar';
+import TopBar from './components/TopBar';
+import DashboardView from './components/DashboardView';
 import Map from './components/Map';
 import SystemStatus from './components/SystemStatus';
 import VersionManager from './components/VersionManager';
@@ -19,7 +21,8 @@ import socket from './services/socket';
 import { Compass, Database, Layers, ShieldCheck, FileText, Radio, CheckCircle2, Cpu } from 'lucide-react';
 
 function AppContent() {
-  const [activeTab, setActiveTab] = useState('complaints'); // 'complaints' | 'routing' | 'review' | 'jurisdictions' | 'analytics' | 'audit'
+  const [activeTab, setActiveTab] = useState('dashboard'); // 'dashboard' | 'complaints' | 'routing' | 'review' | 'jurisdictions' | 'analytics' | 'audit'
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [apiHealth, setApiHealth] = useState(null);
   const [dbStatus, setDbStatus] = useState(null);
   const [socketConnected, setSocketConnected] = useState(socket.connected);
@@ -92,70 +95,96 @@ function AppContent() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col">
-      {/* Header */}
-      <Header
-        socketConnected={socketConnected}
-        apiHealthy={apiHealth?.success}
+    <div className="min-h-screen bg-[#080d1a] text-slate-100 flex flex-col md:flex-row relative selection:bg-teal-500/20 selection:text-teal-300">
+      {/* Background ambient lighting effects */}
+      <div className="fixed inset-0 pointer-events-none bg-[radial-gradient(ellipse_80%_60%_at_50%_-20%,rgba(14,116,144,0.08),rgba(255,255,255,0))]" />
+
+      {/* Left Navigation Sidebar */}
+      <Sidebar
         activeTab={activeTab}
         onTabChange={setActiveTab}
-        onSelectComplaint={(id) => setTrackingComplaintId(id)}
+        socketConnected={socketConnected}
+        apiHealthy={apiHealth?.success}
+        activeVersionCode={activeVersionCode}
+        isOpen={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
       />
 
-      {/* Global Auth Modal */}
-      <AuthModal />
-
-      {/* Case Tracker Modal from global notification click */}
-      {trackingComplaintId && (
-        <CaseTrackerModal
-          complaintId={trackingComplaintId}
-          onClose={() => setTrackingComplaintId(null)}
+      {/* Main Operations Container */}
+      <div className="flex-1 flex flex-col min-w-0 h-screen overflow-y-auto">
+        {/* Top Status Bar */}
+        <TopBar
+          activeTab={activeTab}
+          onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
+          socketConnected={socketConnected}
+          apiHealthy={apiHealth?.success}
+          activeVersionCode={activeVersionCode}
+          onSelectComplaint={(id) => setTrackingComplaintId(id)}
         />
-      )}
 
-      {/* Main Content Area */}
-      <main className="flex-1 max-w-7xl w-full mx-auto p-6 space-y-6">
-        {activeTab === 'complaints' ? (
-          /* =================================================== */
-          /* STAGE 4 — CITIZEN COMPLAINT INTAKE & CLASSIFICATION */
-          /* =================================================== */
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-            {/* Citizen Reporting Form */}
-            <div className="lg:col-span-7">
-              <ComplaintForm 
-                onComplaintSubmitted={(c) => setRecentlySubmitted(c)} 
-                onTrackComplaint={(id) => setTrackingComplaintId(id)}
-              />
-            </div>
+        {/* Global Auth Modal */}
+        <AuthModal />
+
+        {/* Case Tracker Modal from global notification click */}
+        {trackingComplaintId && (
+          <CaseTrackerModal
+            complaintId={trackingComplaintId}
+            onClose={() => setTrackingComplaintId(null)}
+          />
+        )}
+
+        {/* Main Content Area */}
+        <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 space-y-6 relative z-10">
+          {activeTab === 'dashboard' ? (
+            /* =================================================== */
+            /* COMMAND CENTER — CIVIC OPERATIONS DASHBOARD         */
+            /* =================================================== */
+            <DashboardView
+              activeVersionCode={activeVersionCode}
+              onNavigate={(tab) => setActiveTab(tab)}
+              onSelectComplaint={(id) => setTrackingComplaintId(id)}
+            />
+          ) : activeTab === 'complaints' ? (
+            /* =================================================== */
+            /* STAGE 4 — CITIZEN COMPLAINT INTAKE & CLASSIFICATION */
+            /* =================================================== */
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+              {/* Citizen Reporting Form */}
+              <div className="lg:col-span-7">
+                <ComplaintForm 
+                  onComplaintSubmitted={(c) => setRecentlySubmitted(c)} 
+                  onTrackComplaint={(id) => setTrackingComplaintId(id)}
+                />
+              </div>
 
             {/* Live Feed & Architecture Constraints */}
             <div className="lg:col-span-5 space-y-5">
               <ComplaintFeed newComplaint={recentlySubmitted} />
 
-              <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-xl">
+              <div className="bg-[#0d1424]/90 border border-slate-800/90 rounded-2xl p-5 shadow-xl backdrop-blur">
                 <h3 className="text-sm font-semibold text-white flex items-center gap-2 mb-3">
-                  <ShieldCheck className="w-4 h-4 text-emerald-400" />
+                  <ShieldCheck className="w-4 h-4 text-teal-400" />
                   Stage 14 RBAC & Routing Guarantees
                 </h3>
                 <ul className="space-y-2 text-xs text-slate-300">
                   <li className="flex items-start gap-2">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 mt-1.5 shrink-0" />
+                    <span className="w-1.5 h-1.5 rounded-full bg-teal-400 mt-1.5 shrink-0" />
                     <span><strong>100% Deterministic:</strong> Routing decided purely by PostGIS spatial containment + DB category maps.</span>
                   </li>
                   <li className="flex items-start gap-2">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 mt-1.5 shrink-0" />
+                    <span className="w-1.5 h-1.5 rounded-full bg-teal-400 mt-1.5 shrink-0" />
                     <span><strong>Public Intake & Tracking:</strong> Anonymous/Citizen access to filing & tracking without credential barriers.</span>
                   </li>
                   <li className="flex items-start gap-2">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 mt-1.5 shrink-0" />
+                    <span className="w-1.5 h-1.5 rounded-full bg-teal-400 mt-1.5 shrink-0" />
                     <span><strong>Role-Based Access Control:</strong> Human review, jurisdiction mutation, and operational analytics strictly guarded.</span>
                   </li>
                   <li className="flex items-start gap-2">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 mt-1.5 shrink-0" />
+                    <span className="w-1.5 h-1.5 rounded-full bg-teal-400 mt-1.5 shrink-0" />
                     <span><strong>Historical Immutability:</strong> Decisions permanently preserve the active version at resolution time.</span>
                   </li>
                   <li className="flex items-start gap-2">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 mt-1.5 shrink-0" />
+                    <span className="w-1.5 h-1.5 rounded-full bg-teal-400 mt-1.5 shrink-0" />
                     <span><strong>Scoped Real-Time Gateway:</strong> Review events stream exclusively to authorized operator sockets.</span>
                   </li>
                 </ul>
@@ -234,14 +263,14 @@ function AppContent() {
               />
 
               <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-                <div className="lg:col-span-3 min-h-[550px]">
+                <div className="lg:col-span-3 min-h-[520px]">
                   <Map activeVersionCode={activeVersionCode} targetCoord={targetCoord} />
                 </div>
 
                 <div className="lg:col-span-1 space-y-4">
-                  <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-xl">
+                  <div className="bg-[#0d1424]/90 border border-slate-800/90 rounded-2xl p-5 shadow-xl">
                     <h3 className="text-sm font-semibold text-white flex items-center gap-2 mb-3">
-                      <Database className="w-4 h-4 text-civic-400" />
+                      <Database className="w-4 h-4 text-teal-400" />
                       GIS Engine & RBAC Core
                     </h3>
                     <ul className="space-y-2 text-xs text-slate-300">
@@ -266,11 +295,12 @@ function AppContent() {
       </main>
 
       {/* Civic Footer */}
-      <footer className="border-t border-slate-900 bg-slate-950/80 px-6 py-4 text-center text-xs text-slate-500">
+      <footer className="border-t border-slate-800/80 bg-[#060a14]/90 px-6 py-4 text-center text-xs text-slate-400 font-medium">
         Adaptive Civic Routing Intelligence System • HackMysuru Sub-Problem: Routing • Stage 15: Production Readiness & Deployment Preparation
       </footer>
     </div>
-  );
+  </div>
+);
 }
 
 export default function App() {
