@@ -143,6 +143,10 @@ async function runTests() {
   console.log('================================================================\n');
 
   try {
+    // Ensure Stage 15 baseline: MYS_2026_V2 is ACTIVE
+    await pool.query("UPDATE jurisdiction_versions SET status = 'RETIRED' WHERE version_code = 'MYS_2026_V1';");
+    await pool.query("UPDATE jurisdiction_versions SET status = 'ACTIVE' WHERE version_code = 'MYS_2026_V2';");
+
     // ----------------------------------------------------------------
     // 1. PostgreSQL Connectivity
     // ----------------------------------------------------------------

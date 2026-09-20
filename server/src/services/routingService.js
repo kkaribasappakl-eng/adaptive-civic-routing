@@ -251,9 +251,13 @@ const routeComplaint = async (complaintIdOrCode) => {
       routingStatus,
       routingMethod,
       authority: fullDecision?.authority?.name || null,
+      authorityName: fullDecision?.authority?.name || null,
       department: fullDecision?.department?.name || null,
+      departmentName: fullDecision?.department?.name || null,
       jurisdiction: fullDecision?.jurisdiction?.name || null,
+      jurisdictionName: fullDecision?.jurisdiction?.name || null,
       jurisdictionVersion: activeVersion.version_code,
+      versionCode: activeVersion.version_code,
       reason,
       timestamp: new Date().toISOString()
     };

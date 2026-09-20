@@ -71,6 +71,7 @@ const submitComplaint = async (req, res, next) => {
       success: true,
       data: safeComplaint,
       duplicateWarning: result.duplicateWarning,
+      routing: result.routingDecision,
       message: `Complaint ${result.complaint.complaint_code} submitted successfully.`
     });
   } catch (error) {

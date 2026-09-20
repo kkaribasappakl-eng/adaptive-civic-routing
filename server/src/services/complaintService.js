@@ -130,7 +130,7 @@ const generateNextComplaintCode = async () => {
 /**
  * Creates and persists a citizen complaint into PostgreSQL with PostGIS Point geometry.
  */
-const createComplaint = async (inputData, photoRelativeUrl = null) => {
+const createComplaint = async (inputData, photoRelativeUrl = null, autoRoute = true) => {
   const validation = validateComplaintInput(inputData);
   if (!validation.valid) {
     const error = new Error(validation.errors.join(' '));
@@ -273,9 +273,25 @@ const createComplaint = async (inputData, photoRelativeUrl = null) => {
     console.warn('[Socket.IO] Broadcast failed (client may still be connecting):', socketErr.message);
   }
 
+  // Stage 15: Automatic deterministic PostGIS civic routing
+  let routingDecision = null;
+  if (autoRoute) {
+    try {
+      const { routeComplaint } = require('./routingService');
+      const routeResult = await routeComplaint(savedComplaint.id);
+      routingDecision = routeResult?.decision || null;
+      if (routingDecision) {
+        savedComplaint.status = routingDecision.routing_status || routingDecision.routingStatus || savedComplaint.status;
+      }
+    } catch (routeErr) {
+      console.warn('[Auto Routing Warning] Automatic deterministic routing failed:', routeErr.message);
+    }
+  }
+
   return {
     complaint: savedComplaint,
-    duplicateWarning: duplicateInfo
+    duplicateWarning: duplicateInfo,
+    routingDecision
   };
 };
 

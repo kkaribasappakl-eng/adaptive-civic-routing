@@ -428,9 +428,9 @@ async function runStage6Tests() {
       longitude: 76.6430
     });
     assert(
-      compReg.status === 201 && compReg.body.data.status === 'SUBMITTED',
+      compReg.status === 201 && (compReg.body.data.status === 'ROUTED' || compReg.body.data.status === 'SUBMITTED'),
       '20. Stage 4 Regression: Citizen Intake Pipeline Operational',
-      `Complaint Code: ${compReg.body.data.complaint_code}`
+      `Complaint Code: ${compReg.body.data.complaint_code}, Status: ${compReg.body.data.status}`
     );
 
     // 21. Stage 5 Regression: Deterministic Routing Engine Operational

@@ -52,43 +52,108 @@ export default function RoutingView() {
 
   // Listen for real-time routing events and new complaint intake
   useEffect(() => {
-    const handleRoutingCompleted = () => {
+    const handleRoutingCompleted = (data) => {
+      if (data && (data.complaintCode || data.complaint_code || data.complaintId)) {
+        const code = data.complaintCode || data.complaint_code;
+        const id = data.complaintId || data.complaint_id;
+        setDecisions((prev) =>
+          prev.map((d) => {
+            const matches = (code && (d.complaint_code === code || d.complaintCode === code)) ||
+                            (id && (d.complaint_id === id || d.complaintId === id || d.id === id));
+            if (matches) {
+              return {
+                ...d,
+                routing_status: data.routingStatus || 'ROUTED',
+                routing_method: data.routingMethod || 'GIS_RULE',
+                authority_name: data.authorityName || data.authority,
+                department_name: data.departmentName || data.department,
+                jurisdiction_name: data.jurisdictionName || data.jurisdiction,
+                version_code: data.jurisdictionVersion || data.versionCode,
+                reason: data.reason
+              };
+            }
+            return d;
+          })
+        );
+      }
       loadDecisions(searchTerm);
     };
-    const handleRoutingReview = () => {
+
+    const handleRoutingReview = (data) => {
+      if (data && (data.complaintCode || data.complaint_code || data.complaintId)) {
+        const code = data.complaintCode || data.complaint_code;
+        const id = data.complaintId || data.complaint_id;
+        setDecisions((prev) =>
+          prev.map((d) => {
+            const matches = (code && (d.complaint_code === code || d.complaintCode === code)) ||
+                            (id && (d.complaint_id === id || d.complaintId === id || d.id === id));
+            if (matches) {
+              return {
+                ...d,
+                routing_status: data.routingStatus || 'HUMAN_REVIEW',
+                routing_method: data.routingMethod || 'HUMAN_REVIEW',
+                authority_name: data.authorityName || data.authority || null,
+                department_name: data.departmentName || data.department || null,
+                jurisdiction_name: data.jurisdictionName || data.jurisdiction || null,
+                version_code: data.jurisdictionVersion || data.versionCode || null,
+                reason: data.reason
+              };
+            }
+            return d;
+          })
+        );
+      }
       loadDecisions(searchTerm);
     };
+
     const handleComplaintCreated = (newComplaint) => {
       const code = newComplaint.complaintCode || newComplaint.complaint_code;
-      const pendingRecord = {
+      const isAlreadyRouted = newComplaint.status === 'ROUTED' || newComplaint.routing_status === 'ROUTED';
+      const isAlreadyReview = newComplaint.status === 'HUMAN_REVIEW' || newComplaint.routing_status === 'HUMAN_REVIEW';
+
+      const initialRecord = {
         id: `pending-${newComplaint.id || code}`,
         complaint_id: newComplaint.id,
         complaint_code: code,
         category: newComplaint.category,
         complaint_status: newComplaint.status || 'SUBMITTED',
-        routing_status: 'AWAITING_ROUTING',
-        routing_method: 'PENDING',
-        reason: 'Complaint registered and awaiting routing assignment.',
+        routing_status: isAlreadyRouted ? 'ROUTED' : (isAlreadyReview ? 'HUMAN_REVIEW' : 'AWAITING_ROUTING'),
+        routing_method: isAlreadyRouted ? 'GIS_RULE' : (isAlreadyReview ? 'HUMAN_REVIEW' : 'PENDING'),
+        reason: isAlreadyRouted 
+          ? 'Complaint deterministically routed via PostGIS.' 
+          : (isAlreadyReview ? 'Complaint flagged for human review.' : 'Complaint registered and awaiting routing assignment.'),
         created_at: newComplaint.createdAt || newComplaint.created_at || new Date().toISOString(),
         authority_name: null,
         department_name: null,
         jurisdiction_name: null,
         version_code: null
       };
+
       setDecisions((prev) => [
-        pendingRecord,
+        initialRecord,
         ...prev.filter((d) => (d.complaint_code || d.complaintCode) !== code)
       ]);
+
+      // If already routed or reviewing, fetch full decision right away
+      if (isAlreadyRouted || isAlreadyReview) {
+        loadDecisions(searchTerm);
+      }
+    };
+
+    const handleStatusChanged = () => {
+      loadDecisions(searchTerm);
     };
 
     socket.on('routing:completed', handleRoutingCompleted);
     socket.on('routing:review_required', handleRoutingReview);
     socket.on('complaint:created', handleComplaintCreated);
+    socket.on('complaint:status_changed', handleStatusChanged);
 
     return () => {
       socket.off('routing:completed', handleRoutingCompleted);
       socket.off('routing:review_required', handleRoutingReview);
       socket.off('complaint:created', handleComplaintCreated);
+      socket.off('complaint:status_changed', handleStatusChanged);
     };
   }, [searchTerm]);
 

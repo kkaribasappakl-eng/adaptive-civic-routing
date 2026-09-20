@@ -86,7 +86,7 @@ export default function ComplaintFeed({ newComplaint }) {
       setComplaints((prev) =>
         prev.map((c) =>
           c.id === data.complaintId || c.complaint_code === data.complaintCode
-            ? { ...c, status: 'ROUTED', authority_name: data.authorityName, department_name: data.departmentName }
+            ? { ...c, status: 'ROUTED', authority_name: data.authorityName || data.authority, department_name: data.departmentName || data.department }
             : c
         )
       );
