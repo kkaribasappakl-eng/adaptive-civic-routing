@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { MapContainer, TileLayer, CircleMarker, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
 
@@ -23,28 +23,40 @@ function MapInvalidator() {
 }
 
 // Auto-fit / re-center to real complaint coordinates when available
-function MapAutoBounds({ points }) {
+function MapAutoBounds({ points, activeCategory, focusCoord }) {
   const map = useMap();
-  const hasFittedRef = useRef(false);
 
   useEffect(() => {
-    if (hasFittedRef.current || !points || points.length === 0) return;
-    const validCoords = points
-      .filter(p => p.latitude && p.longitude && !isNaN(p.latitude) && !isNaN(p.longitude))
-      .map(p => [parseFloat(p.latitude), parseFloat(p.longitude)]);
-
-    if (validCoords.length > 0) {
-      try {
-        const bounds = L.latLngBounds(validCoords);
-        if (bounds.isValid()) {
-          map.fitBounds(bounds, { padding: [30, 30], maxZoom: 14 });
-          hasFittedRef.current = true;
-        }
-      } catch (e) {
-        // Fallback to center
-      }
+    if (focusCoord) {
+      map.setView(focusCoord, 15, { animate: true });
+      return;
     }
-  }, [points, map]);
+
+    if (!points || points.length === 0) return;
+    const validCoords = points
+      .filter(p => p.latitude && p.longitude && !isNaN(p.latitude) && !isNaN(p.longitude));
+
+    if (validCoords.length === 0) return;
+
+    // Filter for coordinates in the Mysuru civic jurisdiction region
+    // to prevent outside-boundary test points (e.g. New Delhi at 28.6139, 77.2090)
+    // from pulling the auto-zoom out to zoom level 4 across the entire continent.
+    const mysoreCoords = validCoords.filter(
+      p => p.latitude >= 12.0 && p.latitude <= 12.6 && p.longitude >= 76.4 && p.longitude <= 76.9
+    );
+
+    const targetPoints = mysoreCoords.length > 0 ? mysoreCoords : validCoords;
+    const coords = targetPoints.map(p => [parseFloat(p.latitude), parseFloat(p.longitude)]);
+
+    try {
+      const bounds = L.latLngBounds(coords);
+      if (bounds.isValid()) {
+        map.fitBounds(bounds, { padding: [30, 30], maxZoom: 14 });
+      }
+    } catch (e) {
+      // Fallback to center
+    }
+  }, [points, activeCategory, focusCoord, map]);
 
   return null;
 }
@@ -108,6 +120,7 @@ export default function AnalyticsDashboard() {
   const [refreshing, setRefreshing] = useState(false);
   const [lastRefreshed, setLastRefreshed] = useState(null);
   const [activeSpatialCategory, setActiveSpatialCategory] = useState('ALL');
+  const [highlightComplaintCode, setHighlightComplaintCode] = useState('');
 
   // Debounced refresh ref
   const refreshTimeoutRef = useRef(null);
@@ -226,6 +239,46 @@ export default function AnalyticsDashboard() {
         return '#8b5cf6'; // purple
     }
   };
+
+  // Filter spatial points based on local category selector
+  const filteredComplaintPoints = useMemo(() => {
+    if (!spatialData?.complaintPoints) return [];
+    return spatialData.complaintPoints.filter(
+      p => activeSpatialCategory === 'ALL' || p.category === activeSpatialCategory
+    );
+  }, [spatialData, activeSpatialCategory]);
+
+  // Group points by coordinate to handle overlapping markers so new complaints are never hidden
+  const groupedSpatialPoints = useMemo(() => {
+    const groupsMap = new Map();
+    for (const p of filteredComplaintPoints) {
+      if (!p.latitude || !p.longitude) continue;
+      const key = `${parseFloat(p.latitude).toFixed(6)},${parseFloat(p.longitude).toFixed(6)}`;
+      if (!groupsMap.has(key)) {
+        groupsMap.set(key, {
+          key,
+          latitude: parseFloat(p.latitude),
+          longitude: parseFloat(p.longitude),
+          complaints: []
+        });
+      }
+      groupsMap.get(key).complaints.push(p);
+    }
+    return Array.from(groupsMap.values());
+  }, [filteredComplaintPoints]);
+
+  // Find focus coordinates if user searched a complaint code
+  const focusCoord = useMemo(() => {
+    if (!highlightComplaintCode.trim() || !spatialData?.complaintPoints) return null;
+    const q = highlightComplaintCode.trim().toUpperCase();
+    const found = spatialData.complaintPoints.find(
+      p => p.complaint_code && p.complaint_code.toUpperCase().includes(q)
+    );
+    if (found && found.latitude && found.longitude) {
+      return [parseFloat(found.latitude), parseFloat(found.longitude)];
+    }
+    return null;
+  }, [highlightComplaintCode, spatialData]);
 
   return (
     <div className="space-y-8 animate-fadeIn pb-12">
@@ -988,30 +1041,48 @@ export default function AnalyticsDashboard() {
               <div>
                 <h3 className="text-sm font-semibold uppercase tracking-wider text-slate-300 flex items-center gap-2">
                   <MapPin className="w-4 h-4 text-emerald-400" />
-                  10. Spatial Complaint Distribution ({spatialData?.totalMappedComplaints || 0} Mapped Points)
+                  10. Spatial Complaint Distribution ({filteredComplaintPoints.length} Mapped Points{activeSpatialCategory !== 'ALL' ? ` • ${activeSpatialCategory}` : ''})
                 </h3>
                 <p className="text-xs text-slate-400 mt-0.5">
                   Real PostGIS coordinates from PostgreSQL • Genuine point concentration (No AI hotspot fabrication)
                 </p>
               </div>
 
-              {/* Spatial Category Quick Filter */}
-              <div className="flex items-center gap-2 text-xs">
-                <span className="text-slate-400">Map Filter:</span>
-                <select
-                  value={activeSpatialCategory}
-                  onChange={(e) => setActiveSpatialCategory(e.target.value)}
-                  className="bg-slate-950 border border-slate-800 rounded px-2.5 py-1 text-slate-200 text-xs focus:outline-none"
-                >
-                  <option value="ALL">All Categories</option>
-                  <option value="GARBAGE">Garbage</option>
-                  <option value="ILLEGAL_DUMPING">Illegal Dumping</option>
-                  <option value="POTHOLE">Pothole</option>
-                  <option value="DRAINAGE">Drainage</option>
-                  <option value="STREETLIGHT">Streetlight</option>
-                  <option value="C_AND_D_WASTE">C&D Waste</option>
-                  <option value="WATER_LEAK">Water Leak</option>
-                </select>
+              {/* Spatial Category Quick Filter & Code Finder */}
+              <div className="flex flex-wrap items-center gap-2 text-xs">
+                <input
+                  type="text"
+                  placeholder="Find Code (e.g. 000656)"
+                  value={highlightComplaintCode}
+                  onChange={(e) => setHighlightComplaintCode(e.target.value)}
+                  className="bg-slate-950 border border-slate-800 rounded px-2.5 py-1 text-slate-200 text-xs focus:outline-none focus:border-emerald-500 w-44 font-mono uppercase"
+                />
+                {highlightComplaintCode && (
+                  <button
+                    onClick={() => setHighlightComplaintCode('')}
+                    className="text-slate-400 hover:text-slate-200 text-xs px-1"
+                  >
+                    Clear
+                  </button>
+                )}
+                <div className="flex items-center gap-1.5">
+                  <span className="text-slate-400">Map Filter:</span>
+                  <select
+                    value={activeSpatialCategory}
+                    onChange={(e) => setActiveSpatialCategory(e.target.value)}
+                    className="bg-slate-950 border border-slate-800 rounded px-2.5 py-1 text-slate-200 text-xs focus:outline-none focus:border-emerald-500"
+                  >
+                    <option value="ALL">All Categories</option>
+                    <option value="GARBAGE">Garbage</option>
+                    <option value="ILLEGAL_DUMPING">Illegal Dumping</option>
+                    <option value="POTHOLE">Pothole</option>
+                    <option value="DRAINAGE">Drainage</option>
+                    <option value="STREETLIGHT">Streetlight</option>
+                    <option value="C_AND_D_WASTE">C&D Waste</option>
+                    <option value="WATER_LEAK">Water Leak</option>
+                    <option value="OTHER">Other</option>
+                  </select>
+                </div>
               </div>
             </div>
 
@@ -1028,40 +1099,94 @@ export default function AnalyticsDashboard() {
                   url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                 />
                 <MapInvalidator />
-                <MapAutoBounds points={spatialData?.complaintPoints} />
+                <MapAutoBounds
+                  points={filteredComplaintPoints}
+                  activeCategory={activeSpatialCategory}
+                  focusCoord={focusCoord}
+                />
 
-                {/* Spatial Complaint Points */}
-                {spatialData?.complaintPoints && spatialData.complaintPoints
-                  .filter(p => activeSpatialCategory === 'ALL' || p.category === activeSpatialCategory)
-                  .map((p) => {
-                    if (!p.latitude || !p.longitude) return null;
-                    const color = getCategoryColor(p.category);
+                {/* Spatial Complaint Points (Grouped by coordinate to handle overlapping points without burying new complaints) */}
+                {groupedSpatialPoints.map((group) => {
+                  const primary = group.complaints[0];
+                  const hasMultiple = group.complaints.length > 1;
+                  const isHighlighted = highlightComplaintCode &&
+                    group.complaints.some(c => c.complaint_code?.toUpperCase().includes(highlightComplaintCode.trim().toUpperCase()));
+                  const color = getCategoryColor(primary.category);
 
-                    return (
-                      <CircleMarker
-                        key={p.id}
-                        center={[parseFloat(p.latitude), parseFloat(p.longitude)]}
-                        radius={6}
-                        pathOptions={{
-                          fillColor: color,
-                          fillOpacity: 0.85,
-                          color: '#ffffff',
-                          weight: 1.5
-                        }}
-                      >
-                        <Popup className="text-slate-900">
-                          <div className="p-1 space-y-1 text-xs">
-                            <div className="font-bold text-slate-900">{p.complaint_code}</div>
-                            <div>Category: <strong>{p.category}</strong></div>
-                            <div>Status: <strong>{p.status}</strong></div>
-                            <div>Authority: <strong>{p.authority_name || 'Unassigned'}</strong></div>
-                            <div>Jurisdiction: <strong>{p.jurisdiction_name || 'Out of bounds'}</strong></div>
-                            <div>SLA Status: <strong className={p.sla_status === 'SLA_BREACHED' ? 'text-rose-600' : 'text-emerald-600'}>{p.sla_status || 'WITHIN_SLA'}</strong></div>
+                  return (
+                    <CircleMarker
+                      key={group.key}
+                      center={[group.latitude, group.longitude]}
+                      radius={isHighlighted ? 9 : (hasMultiple ? 7.5 : 6)}
+                      pathOptions={{
+                        fillColor: isHighlighted ? '#eab308' : color,
+                        fillOpacity: 0.9,
+                        color: isHighlighted ? '#ffffff' : (hasMultiple ? '#f8fafc' : '#ffffff'),
+                        weight: isHighlighted ? 2.5 : (hasMultiple ? 2 : 1.5)
+                      }}
+                    >
+                      <Popup className="text-slate-900 max-w-xs">
+                        <div className="p-1 space-y-1.5 text-xs">
+                          {hasMultiple && (
+                            <div className="flex items-center justify-between pb-1 border-b border-slate-200 text-[11px] font-semibold text-indigo-700">
+                              <span>📍 {group.complaints.length} Complaints at this Point</span>
+                              <span className="bg-indigo-100 text-indigo-800 px-1.5 py-0.5 rounded text-[10px]">Latest on Top</span>
+                            </div>
+                          )}
+
+                          {/* Primary (Newest) Complaint Details */}
+                          <div className="space-y-1">
+                            <div className="flex items-center justify-between gap-1">
+                              <span className="font-bold text-slate-900 text-sm font-mono">{primary.complaint_code}</span>
+                              {hasMultiple && (
+                                <span className="bg-emerald-100 text-emerald-800 text-[10px] px-1.5 py-0.5 rounded font-bold">LATEST</span>
+                              )}
+                            </div>
+                            <div>Category: <strong>{primary.category}</strong></div>
+                            <div>Status: <strong className={primary.status === 'ROUTED' ? 'text-emerald-700' : 'text-slate-700'}>{primary.status}</strong></div>
+                            <div>Authority: <strong>{primary.authority_name || 'Unassigned'}</strong></div>
+                            {primary.department_name && (
+                              <div>Department: <strong>{primary.department_name}</strong></div>
+                            )}
+                            <div>Jurisdiction: <strong>{primary.jurisdiction_name || 'Out of bounds'}</strong></div>
+                            <div>SLA Status: <strong className={primary.sla_status === 'SLA_BREACHED' ? 'text-rose-600' : 'text-emerald-600'}>{primary.sla_status || 'WITHIN_SLA'}</strong></div>
+                            <div className="text-[10px] text-slate-500 pt-0.5">Reported: {new Date(primary.created_at).toLocaleString()}</div>
                           </div>
-                        </Popup>
-                      </CircleMarker>
-                    );
-                  })}
+
+                          {/* Multiple complaints list */}
+                          {hasMultiple && (
+                            <div className="pt-1.5 border-t border-slate-200">
+                              <div className="text-[11px] font-semibold text-slate-700 mb-1">
+                                All complaints at this coordinate ({group.complaints.length}):
+                              </div>
+                              <div className="max-h-28 overflow-y-auto space-y-1 pr-1">
+                                {group.complaints.map((c, idx) => (
+                                  <div
+                                    key={c.id || idx}
+                                    className={`p-1 rounded text-[11px] border ${
+                                      idx === 0
+                                        ? 'bg-emerald-50 border-emerald-300 font-semibold'
+                                        : 'bg-slate-50 border-slate-200 text-slate-600'
+                                    }`}
+                                  >
+                                    <div className="flex justify-between items-center">
+                                      <span className="font-mono">{c.complaint_code}</span>
+                                      <span className="text-[10px] font-semibold">{c.category}</span>
+                                    </div>
+                                    <div className="flex justify-between text-[10px] text-slate-500">
+                                      <span>{c.status}</span>
+                                      <span>{new Date(c.created_at).toLocaleDateString()}</span>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </Popup>
+                    </CircleMarker>
+                  );
+                })}
               </MapContainer>
             </div>
 

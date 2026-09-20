@@ -738,12 +738,15 @@ const getSpatialAnalytics = async (filters = {}) => {
       c.created_at,
       a.name AS authority_name,
       a.code AS authority_code,
+      d.name AS department_name,
+      d.code AS department_code,
       j.name AS jurisdiction_name,
       rd.routing_status,
       rd.routing_method
     FROM complaints c
     LEFT JOIN routing_decisions rd ON rd.complaint_id = c.id
     LEFT JOIN authorities a ON rd.authority_id = a.id
+    LEFT JOIN departments d ON rd.department_id = d.id
     LEFT JOIN jurisdictions j ON rd.jurisdiction_id = j.id
     ${whereSql}
     ORDER BY c.created_at DESC
