@@ -32,7 +32,7 @@ An adaptive municipal routing platform engineered for Mysuru's urban administrat
 
 ## Presentation
 - **Presentation PDF:** [presentation.pdf](presentation.pdf)
-- **Presentation PPTX Backup:** [presentation.pptx](presentation.pptx)
+- **Team ID Named PDF:** [HM26-E9C5_presentation.pdf](HM26-E9C5_presentation.pdf)
 - **Status:** **Ready for Review** (10-slide widescreen presentation deck adhering strictly to HackMysuru format, architecture, constraints, and verified live application evidence).
 
 ---
