@@ -45,7 +45,7 @@ An adaptive municipal routing platform engineered for Mysuru's urban administrat
 ---
 
 ## 10-Minute Walkthrough Video
-- **Link:** [https://drive.google.com/file/d/1Jq3ZSU16OH3UGLkgwKjcmzYTMe3CY3Kx/view?usp=drive_link](https://drive.google.com/file/d/1Jq3ZSU16OH3UGLkgwKjcmzYTMe3CY3Kx/view?usp=drive_link)
+- **Link:** [https://drive.google.com/file/d/1Jq3ZSU16OH3UGLkgwKjcmzYTMe3CY3Kx/view?usp=sharing](https://drive.google.com/file/d/1Jq3ZSU16OH3UGLkgwKjcmzYTMe3CY3Kx/view?usp=sharing)
 - **Required Permission:** *Anyone with the link can view*
 - *Note:* A comprehensive 10-minute video demonstrating the end-to-end citizen reporting journey, GIS routing engine, human review workspace, and audit provenance.
 
